@@ -423,7 +423,10 @@
                     <input type="text" id="medNote" placeholder="可选">
                 </div>
             </div>
+            <div style="display:flex; gap:8px;">
             <button type="submit" class="btn btn-primary" id="medSubmitBtn">➕ 添加记录</button>
+            <button type="button" class="btn btn-sm" onclick="copyLastRecord('medication')" style="background:var(--primary-light); color:var(--primary); border:1px solid var(--primary);">📋 复制上一条</button>
+            </div>
         </form>
     </div>
 
@@ -572,7 +575,10 @@
                     <input type="text" id="dietNote" placeholder="可选">
                 </div>
             </div>
+            <div style="display:flex; gap:8px;">
             <button type="submit" class="btn btn-primary" id="dietSubmitBtn">➕ 添加记录</button>
+            <button type="button" class="btn btn-sm" onclick="copyLastRecord('diet')" style="background:var(--primary-light); color:var(--primary); border:1px solid var(--primary);">📋 复制上一条</button>
+            </div>
         </form>
     </div>
     </div>
@@ -671,7 +677,10 @@
                     <input type="text" id="exNote" placeholder="如：深蹲3组×15次">
                 </div>
             </div>
+            <div style="display:flex; gap:8px;">
             <button type="submit" class="btn btn-primary" id="exSubmitBtn">➕ 添加记录</button>
+            <button type="button" class="btn btn-sm" onclick="copyLastRecord('exercise')" style="background:var(--primary-light); color:var(--primary); border:1px solid var(--primary);">📋 复制上一条</button>
+            </div>
         </form>
     </div>
 
@@ -757,7 +766,10 @@
                     <input type="text" id="gluNote" placeholder="可选">
                 </div>
             </div>
+            <div style="display:flex; gap:8px;">
             <button type="submit" class="btn btn-primary" id="gluSubmitBtn">➕ 添加记录</button>
+            <button type="button" class="btn btn-sm" onclick="copyLastRecord('glucose')" style="background:var(--primary-light); color:var(--primary); border:1px solid var(--primary);">📋 复制上一条</button>
+            </div>
         </form>
     </div>
     </div>
@@ -850,7 +862,10 @@
                     <input type="text" id="fuNote" placeholder="如 复诊结果">
                 </div>
             </div>
+            <div style="display:flex; gap:8px;">
             <button type="submit" class="btn btn-primary" id="fuSubmitBtn">➕ 添加记录</button>
+            <button type="button" class="btn btn-sm" onclick="copyLastRecord('followup')" style="background:var(--primary-light); color:var(--primary); border:1px solid var(--primary);">📋 复制上一条</button>
+            </div>
         </form>
     </div>
 
@@ -1682,6 +1697,53 @@ window.deleteMember = async function(id) {
     await loadMembers();
     if (currentMemberId === id) switchMember(1);
     showToast('🗑️ 成员已删除');
+};
+
+// ===== 一键复制上一条（Phase 4） =====
+window.copyLastRecord = async function(type) {
+    let records = [];
+    try { records = await apiGet(API[type]); } catch { records = []; }
+    if (records.length === 0) { showToast('⚠️ 暂无记录可复制'); return; }
+    const last = records[0];
+
+    if (type === 'diet') {
+        document.getElementById('dietMeal').value = last.meal || '早餐';
+        document.getElementById('dietFood').value = last.food || '';
+        document.getElementById('dietCalories').value = last.calories || '';
+        document.getElementById('dietOrder').value = last.eating_order || '';
+        document.getElementById('dietGlucose').value = '';
+        document.getElementById('dietNote').value = '';
+    } else if (type === 'exercise') {
+        document.getElementById('exType').value = last.type || '';
+        document.getElementById('exDuration').value = last.duration || '';
+        document.getElementById('exIntensity').value = last.intensity || '';
+        document.getElementById('exSugar').value = last.sugar_carried || '';
+        document.getElementById('exBeforeGlucose').value = '';
+        document.getElementById('exAfterGlucose').value = '';
+        document.getElementById('exSymptom').value = '';
+        document.getElementById('exNote').value = '';
+    } else if (type === 'glucose') {
+        document.getElementById('gluTime').value = last.time || '';
+        document.getElementById('gluType').value = last.type || '空腹';
+        document.getElementById('gluValue').value = '';
+        document.getElementById('gluNote').value = '';
+    } else if (type === 'medication') {
+        document.getElementById('medName').value = last.name || '';
+        document.getElementById('medTime').value = last.time_detail || '';
+        document.getElementById('medDose').value = last.dose || '';
+        document.getElementById('medTimePeriod').value = last.time_period || '晨起空腹';
+        document.getElementById('medSideEffect').value = '无';
+        document.getElementById('medNote').value = '';
+    } else if (type === 'followup') {
+        document.getElementById('fuWeight').value = last.weight || '';
+        document.getElementById('fuWaist').value = last.waist || '';
+        document.getElementById('fuHba1c').value = last.hba1c || '';
+        document.getElementById('fuNote').value = '';
+    }
+    // 日期统一设为今天
+    const dateField = { diet: 'dietDate', exercise: 'exDate', glucose: 'gluDate', medication: 'medDate', followup: 'fuDate' }[type];
+    if (dateField) document.getElementById(dateField).value = new Date().toISOString().split('T')[0];
+    showToast('✅ 已填充上一条记录（血糖/备注已清空，日期为今天）');
 };
 
 // ===== DIET =====
