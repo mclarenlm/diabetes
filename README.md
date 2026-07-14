@@ -66,6 +66,14 @@ docker compose down
 docker compose up -d --build
 ```
 
+## 🔒 部署安全加固
+
+- **非 root 运行**：Dockerfile 已创建 `appuser` 并 `USER appuser`，容器不再以 root 权限运行。
+- **健康检查**：`docker-compose.yml` 配置了 `healthcheck`，定期访问 `/api/profile`，Flask 假死时 Docker 可自动重启。
+- **依赖锁定**：依赖集中在 `requirements.txt`，版本可复现，便于 CI/CD。
+- **Gunicorn 调优**：worker 数按 CPU 核心数自适应（上限 8），并设 `--timeout 120` 防止备份/恢复大数据量时请求超时。
+- **备份防注入**：备份/恢复仅允许 `ALLOWED_TABLES` 白名单内的表，杜绝 SQL 注入。
+
 ## 📝 License
 
 MIT

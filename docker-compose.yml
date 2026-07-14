@@ -7,6 +7,12 @@ services:
       dockerfile: Dockerfile
     container_name: diabetes-tracker
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5000/api/profile').status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     ports:
       - "5088:5000"
     volumes:

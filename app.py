@@ -507,16 +507,25 @@ def update_meal_template(item_id):
 
 
 # ========== 数据备份与恢复 ==========
+# 严格白名单：SQLite 不支持表名参数化，所有动态表名必须先经此校验，杜绝 SQL 注入
+ALLOWED_TABLES = {'profile', 'goals', 'custom_drugs', 'meal_templates',
+                  'diet', 'exercise', 'glucose', 'medication', 'followup'}
+
+
+def _safe_table(name):
+    if name not in ALLOWED_TABLES:
+        raise ValueError(f'非法的表名: {name}')
+    return name
+
+
 @app.route('/api/backup', methods=['GET'])
 def backup_data():
     """导出所有数据为 JSON"""
-    tables = ['profile', 'goals', 'custom_drugs', 'meal_templates', 'diet', 'exercise',
-              'glucose', 'medication', 'followup']
     backup = {}
     conn = get_db()
     try:
-        for t in tables:
-            rows = conn.execute(f'SELECT * FROM {t}').fetchall()
+        for t in ALLOWED_TABLES:
+            rows = conn.execute(f'SELECT * FROM {_safe_table(t)}').fetchall()
             backup[t] = [dict(r) for r in rows]
         conn.close()
     except Exception:
@@ -530,13 +539,17 @@ def backup_data():
 def restore_data():
     """从 JSON 恢复所有数据（覆盖现有数据）"""
     data = request.json
+    if not isinstance(data, dict):
+        return jsonify({'ok': False, 'error': '无效的备份数据'}), 400
     conn = get_db()
     try:
-        # 清空所有表
-        for t in ['diet', 'exercise', 'glucose', 'medication', 'followup', 'custom_drugs', 'meal_templates']:
-            conn.execute(f'DELETE FROM {t}')
+        # 清空所有业务表（仅白名单内的表）
+        for t in ALLOWED_TABLES - {'profile', 'goals'}:
+            conn.execute(f'DELETE FROM {_safe_table(t)}')
         # 恢复数据
         for t, rows in data.items():
+            if t not in ALLOWED_TABLES:
+                continue  # 跳过非白名单键，防止注入/脏数据
             if t in ('profile', 'goals'):
                 # 单行表，用 UPDATE
                 if t == 'profile' and rows:
