@@ -20,14 +20,14 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/mclarenlm/diabetes.git
-cd diabetes
+git clone https://github.com/mclarenlm/diabetes-tracker-nas-app.git
+cd diabetes-tracker-nas-app
 
 # 2. 启动服务
 docker compose up -d
 
 # 3. 访问
-# 浏览器打开 http://你的NAS_IP:5055
+# 浏览器打开 http://你的NAS_IP:5088
 ```
 
 ## 📦 文件说明
@@ -49,7 +49,7 @@ diabetes/
 | `DB_PATH` | `/app/data/diabetes.db` | SQLite 数据库路径 |
 | `TZ` | `Asia/Shanghai` | 时区设置 |
 
-修改 `docker-compose.yml` 中的端口映射（默认 `5055:5000`）和数据卷路径即可自定义。
+修改 `docker-compose.yml` 中的端口映射（默认 `5088:5000`）和数据卷路径即可自定义。
 
 ## 🔧 技术栈
 
