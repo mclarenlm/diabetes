@@ -980,10 +980,36 @@
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <h2 style="margin:0;"><span class="icon">👥</span> 家庭成员管理</h2>
-            <button class="btn btn-sm" onclick="openMemberForm()" style="background:var(--primary); color:white;">➕ 添加成员</button>
+            <button class="btn btn-sm" onclick="openMemberModal()" style="background:var(--primary); color:white;">➕ 添加成员</button>
         </div>
-        <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:10px;">为每位家庭成员建立独立的数据档案，页头切换后数据完全隔离。本人为默认成员不可删除。</p>
-        <div id="memberList" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;"></div>
+        <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:10px;">为每位家庭成员建立独立数据档案，页头切换后数据完全隔离。本人为默认成员不可删除。</p>
+        <div id="memberList" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px;"></div>
+    </div>
+
+    <!-- 成员编辑弹窗 -->
+    <div id="memberModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:16px;">
+        <div style="background:var(--card); border-radius:14px; width:100%; max-width:380px; padding:20px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <h3 style="margin:0 0 14px;" id="memberModalTitle">添加家庭成员</h3>
+            <input type="hidden" id="memberEditId">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="memberNameInput" placeholder="如 张三 / 妈妈" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:1rem; box-sizing:border-box;">
+            </div>
+            <div class="form-group">
+                <label>角色</label>
+                <select id="memberRoleInput" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:1rem; box-sizing:border-box;">
+                    <option value="本人">本人</option>
+                    <option value="配偶">配偶</option>
+                    <option value="子女">子女</option>
+                    <option value="父母">父母</option>
+                    <option value="家属">其他家属</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn btn-primary" style="flex:1;" onclick="submitMember()">保存</button>
+                <button class="btn btn-sm" style="flex:1; background:var(--border); color:var(--text);" onclick="closeMemberModal()">取消</button>
+            </div>
+        </div>
     </div>
 
     <!-- 数据备份与恢复 -->
@@ -1652,9 +1678,22 @@ window.deleteTemplate = async function(id) {
 // ===== 成员管理（Phase 2：多用户数据隔离） =====
 let members = [];
 let currentMemberId = 1;
+let memberStats = {};
 
 async function loadMembers() {
     try { members = await apiGet(API.members); } catch { members = []; }
+    // 获取每个成员的数据量统计
+    memberStats = {};
+    try {
+        const allData = await apiGet(API.backup);
+        for (const m of members) {
+            let count = 0;
+            for (const t of ['diet', 'exercise', 'glucose', 'medication', 'followup']) {
+                if (allData[t]) count += allData[t].filter(r => r.user_id === m.id).length;
+            }
+            memberStats[m.id] = count;
+        }
+    } catch {}
     // 同步到 header 下拉框
     const sel = document.getElementById('memberSwitch');
     sel.innerHTML = members.map(m => `<option value="${m.id}">👤 ${escapeHtml(m.name)}</option>`).join('');
@@ -1668,47 +1707,80 @@ async function switchMember(uid) {
     const r = await apiPost(API.members + '/switch', { user_id: uid });
     if (r.ok) {
         currentMemberId = uid;
-        showToast('✅ 已切换到：' + (members.find(m => m.id === uid) || {}).name || '成员');
+        const m = members.find(x => x.id === uid);
+        showToast('✅ 已切换到：' + (m ? m.name : '成员'));
         await loadAll();
     }
 }
 
+const memberColors = ['#3182ce', '#e53e3e', '#38a169', '#805ad5', '#d69e2e', '#dd6b20'];
+function memberColor(id) { return memberColors[(id - 1) % memberColors.length]; }
+
 function renderMemberList() {
     const container = document.getElementById('memberList');
     if (!container) return;
-    if (members.length <= 1) {
-        container.innerHTML = '<div style="color:var(--text-light); font-size:0.82rem; padding:6px;">暂无其他成员，点右上角添加</div>';
+    if (members.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-light); font-size:0.82rem; padding:6px;">暂无成员</div>';
         return;
     }
-    container.innerHTML = members.map(m => `
-        <div style="background:var(--primary-light); border-radius:8px; padding:8px 10px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <span style="font-weight:600; font-size:0.85rem;">👤 ${escapeHtml(m.name)}</span>
-                <span style="font-size:0.72rem; color:var(--text-light); margin-left:6px;">${escapeHtml(m.role || '')}</span>
+    container.innerHTML = members.map(m => {
+        const color = memberColor(m.id);
+        const isActive = m.id === currentMemberId;
+        const stats = memberStats[m.id] || 0;
+        const isDefault = m.id === 1;
+        return `
+        <div style="background:var(--primary-light); border-radius:12px; padding:14px; border:2px solid ${isActive ? color : 'var(--border)'}; ${isActive ? 'box-shadow:0 0 0 2px ' + color + '33;' : ''}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:36px; height:36px; border-radius:50%; background:${color}; color:white; display:flex; align-items:center; justify-content:center; font-size:1rem; font-weight:600;">${escapeHtml(m.name.charAt(0))}</div>
+                    <div>
+                        <div style="font-weight:600; font-size:0.9rem;">${escapeHtml(m.name)} ${isActive ? '<span style="font-size:0.7rem; color:'+color+';">● 当前</span>' : ''}</div>
+                        <div style="font-size:0.72rem; color:var(--text-light);">${escapeHtml(m.role || '')}${isDefault ? ' · 默认' : ''}</div>
+                    </div>
+                </div>
             </div>
-            <div style="display:flex; gap:4px;">
-                ${m.id !== 1 ? `<button class="btn btn-sm" onclick="openMemberForm(${m.id})" style="padding:2px 6px;">编辑</button><button class="btn btn-sm" onclick="deleteMember(${m.id})" style="background:var(--danger); color:white; padding:2px 6px;">删</button>` : '<span style="font-size:0.7rem; color:var(--text-light);">默认</span>'}
+            <div style="font-size:0.78rem; color:var(--text-light); margin-bottom:8px;">📋 共 <b style="color:var(--text);">${stats}</b> 条记录</div>
+            <div style="display:flex; gap:6px;">
+                ${isActive ? '' : `<button class="btn btn-sm" onclick="switchMember(${m.id})" style="background:${color}; color:white; flex:1;">切换</button>`}
+                ${isDefault ? '' : `<button class="btn btn-sm" onclick="openMemberModal(${m.id})" style="flex:1;">编辑</button>`}
+                ${isDefault ? '' : `<button class="btn btn-sm" onclick="deleteMember(${m.id})" style="background:var(--danger); color:white; flex:1;">删除</button>`}
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
-window.openMemberForm = function(id) {
+function openMemberModal(id) {
     const m = id ? members.find(x => x.id === id) : null;
-    const name = prompt('成员姓名：', m ? m.name : '');
-    if (!name) return;
-    const role = prompt('角色（本人/配偶/子女/父母）：', m ? m.role : '家属');
-    if (role === null) return;
-    (async () => {
-        if (m) {
-            await apiPut(API.members + '/' + m.id, { name, role });
+    document.getElementById('memberModalTitle').textContent = m ? '编辑成员' : '添加家庭成员';
+    document.getElementById('memberEditId').value = m ? m.id : '';
+    document.getElementById('memberNameInput').value = m ? m.name : '';
+    document.getElementById('memberRoleInput').value = m ? (m.role || '家属') : '家属';
+    document.getElementById('memberModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('memberNameInput').focus(), 50);
+}
+function closeMemberModal() { document.getElementById('memberModal').style.display = 'none'; }
+document.getElementById('memberModal').addEventListener('click', e => {
+    if (e.target.id === 'memberModal') closeMemberModal();
+});
+
+window.openMemberModal = openMemberModal;
+
+window.submitMember = async function() {
+    const id = document.getElementById('memberEditId').value;
+    const name = document.getElementById('memberNameInput').value.trim();
+    const role = document.getElementById('memberRoleInput').value;
+    if (!name) { alert('请填写姓名'); return; }
+    try {
+        if (id) {
+            await apiPut(API.members + '/' + id, { name, role });
             showToast('✅ 成员已更新');
         } else {
             await apiPost(API.members, { name, role });
             showToast('✅ 成员已添加');
         }
-        await loadMembers();
-    })();
+    } catch { showToast('⚠️ 保存失败'); return; }
+    closeMemberModal();
+    await loadMembers();
 };
 
 window.deleteMember = async function(id) {
@@ -2446,6 +2518,100 @@ function renderWeightChart() {
         }]
     };
     hba1cChartInstance.setOption(hbOption, true);
+}
+
+// ===== 食物GI数据库 =====
+const GI_DATA = [
+    // 主食类
+    {name:'白米饭', gi:83, cat:'主食'}, {name:'糙米饭', gi:50, cat:'主食'},
+    {name:'白粥', gi:90, cat:'主食'}, {name:'小米粥', gi:62, cat:'主食'},
+    {name:'燕麦片', gi:55, cat:'主食'}, {name:'即食燕麦', gi:79, cat:'主食'},
+    {name:'白面包', gi:75, cat:'主食'}, {name:'全麦面包', gi:50, cat:'主食'},
+    {name:'馒头', gi:88, cat:'主食'}, {name:'面条', gi:82, cat:'主食'},
+    {name:'荞麦面', gi:59, cat:'主食'}, {name:'红薯', gi:54, cat:'主食'},
+    {name:'紫薯', gi:48, cat:'主食'}, {name:'土豆(煮)', gi:66, cat:'主食'},
+    {name:'土豆泥', gi:87, cat:'主食'}, {name:'玉米', gi:55, cat:'主食'},
+    {name:'糯米饭', gi:87, cat:'主食'}, {name:'藜麦', gi:53, cat:'主食'},
+    {name:'意大利面', gi:45, cat:'主食'}, {name:'饺子', gi:60, cat:'主食'},
+    // 水果类
+    {name:'苹果', gi:36, cat:'水果'}, {name:'香蕉', gi:52, cat:'水果'},
+    {name:'熟香蕉', gi:62, cat:'水果'}, {name:'橙子', gi:43, cat:'水果'},
+    {name:'葡萄', gi:43, cat:'水果'}, {name:'西瓜', gi:72, cat:'水果'},
+    {name:'草莓', gi:40, cat:'水果'}, {name:'猕猴桃', gi:52, cat:'水果'},
+    {name:'梨', gi:38, cat:'水果'}, {name:'桃子', gi:42, cat:'水果'},
+    {name:'樱桃', gi:22, cat:'水果'}, {name:'柚子', gi:25, cat:'水果'},
+    {name:'菠萝', gi:66, cat:'水果'}, {name:'芒果', gi:55, cat:'水果'},
+    {name:'哈密瓜', gi:65, cat:'水果'}, {name:'木瓜', gi:58, cat:'水果'},
+    // 蔬菜类
+    {name:'西兰花', gi:15, cat:'蔬菜'}, {name:'菠菜', gi:15, cat:'蔬菜'},
+    {name:'生菜', gi:15, cat:'蔬菜'}, {name:'黄瓜', gi:15, cat:'蔬菜'},
+    {name:'番茄', gi:30, cat:'蔬菜'}, {name:'胡萝卜(生)', gi:35, cat:'蔬菜'},
+    {name:'胡萝卜(熟)', gi:85, cat:'蔬菜'}, {name:'白菜', gi:15, cat:'蔬菜'},
+    {name:'茄子', gi:15, cat:'蔬菜'}, {name:'芹菜', gi:15, cat:'蔬菜'},
+    {name:'豆芽', gi:20, cat:'蔬菜'}, {name:'蘑菇', gi:15, cat:'蔬菜'},
+    {name:'洋葱', gi:10, cat:'蔬菜'}, {name:'青椒', gi:15, cat:'蔬菜'},
+    // 豆类/蛋/奶
+    {name:'豆腐', gi:15, cat:'豆奶蛋'}, {name:'豆浆', gi:15, cat:'豆奶蛋'},
+    {name:'黄豆', gi:18, cat:'豆奶蛋'}, {name:'绿豆', gi:27, cat:'豆奶蛋'},
+    {name:'红豆', gi:23, cat:'豆奶蛋'}, {name:'鹰嘴豆', gi:28, cat:'豆奶蛋'},
+    {name:'牛奶', gi:27, cat:'豆奶蛋'}, {name:'酸奶(无糖)', gi:35, cat:'豆奶蛋'},
+    {name:'鸡蛋', gi:30, cat:'豆奶蛋'}, {name:'奶酪', gi:30, cat:'豆奶蛋'},
+    // 肉类/鱼
+    {name:'鸡胸肉', gi:0, cat:'肉鱼'}, {name:'牛肉', gi:0, cat:'肉鱼'},
+    {name:'猪肉', gi:0, cat:'肉鱼'}, {name:'羊肉', gi:0, cat:'肉鱼'},
+    {name:'鲈鱼', gi:0, cat:'肉鱼'}, {name:'三文鱼', gi:0, cat:'肉鱼'},
+    {name:'虾', gi:0, cat:'肉鱼'}, {name:'带鱼', gi:0, cat:'肉鱼'},
+    // 零食/其他
+    {name:'坚果(混合)', gi:15, cat:'零食'}, {name:'核桃', gi:15, cat:'零食'},
+    {name:'杏仁', gi:15, cat:'零食'}, {name:'花生', gi:14, cat:'零食'},
+    {name:'黑巧克力', gi:23, cat:'零食'}, {name:'饼干', gi:70, cat:'零食'},
+    {name:'蛋糕', gi:80, cat:'零食'}, {name:'蜂蜜', gi:58, cat:'零食'},
+    {name:'白糖', gi:65, cat:'零食'}, {name:'果汁', gi:68, cat:'零食'},
+    {name:'可乐', gi:63, cat:'零食'}, {name:'啤酒', gi:66, cat:'零食'},
+    {name:'爆米花', gi:72, cat:'零食'}, {name:'薯片', gi:75, cat:'零食'},
+];
+
+function giColor(gi) {
+    if (gi === 0) return '#718096';
+    if (gi < 55) return '#38a169';
+    if (gi <= 70) return '#d69e2e';
+    return '#e53e3e';
+}
+function giLabel(gi) {
+    if (gi === 0) return '无GI';
+    if (gi < 55) return '低GI ✅';
+    if (gi <= 70) return '中GI ⚠️';
+    return '高GI ❌';
+}
+
+function filterGI() {
+    const kw = (document.getElementById('giSearch').value || '').trim().toLowerCase();
+    const container = document.getElementById('giResults');
+    let data = GI_DATA;
+    if (kw) data = data.filter(r => r.name.toLowerCase().includes(kw) || r.cat.toLowerCase().includes(kw));
+
+    if (data.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:var(--text-light); padding:20px;">未找到相关食物</div>';
+        return;
+    }
+    // 按分类分组
+    const cats = {};
+    data.forEach(r => { if (!cats[r.cat]) cats[r.cat] = []; cats[r.cat].push(r); });
+    const catOrder = ['主食', '水果', '蔬菜', '豆奶蛋', '肉鱼', '零食'];
+    let html = '';
+    catOrder.forEach(cat => {
+        if (!cats[cat]) return;
+        html += `<div style="margin-bottom:14px;"><div style="font-weight:600; font-size:0.85rem; margin-bottom:6px; color:var(--text-light);">${cat}（${cats[cat].length}）</div><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px;">`;
+        cats[cat].forEach(r => {
+            const c = giColor(r.gi);
+            html += `<div style="background:var(--primary-light); border-radius:8px; padding:8px 10px; border-left:3px solid ${c};">
+                <div style="font-weight:600; font-size:0.82rem;">${escapeHtml(r.name)}</div>
+                <div style="font-size:0.78rem; color:${c};">${r.gi > 0 ? 'GI ' + r.gi : '无GI'} · ${giLabel(r.gi)}</div>
+            </div>`;
+        });
+        html += '</div></div>';
+    });
+    container.innerHTML = html;
 }
 
 // ===== 月度报告 =====
