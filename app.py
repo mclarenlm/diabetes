@@ -242,30 +242,148 @@ def manifest():
 @app.route('/sw.js')
 def service_worker():
     sw = '''
-const CACHE_NAME = 'diabetes-tracker-v2.2';
+const CACHE_NAME = 'diabetes-tracker-v3.0';
 const ASSETS = ['/', '/manifest.json'];
+
+// ========== IndexedDB 离线存储 ==========
+function openOfflineDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('diabetes-offline', 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('pending')) {
+                db.createObjectStore('pending', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function storePending(reqData) {
+    const db = await openOfflineDB();
+    const tx = db.transaction('pending', 'readwrite');
+    tx.objectStore('pending').add({ url: reqData.url, method: reqData.method, body: reqData.body, timestamp: Date.now() });
+    return tx.complete;
+}
+
+async function getPending() {
+    const db = await openOfflineDB();
+    return new Promise((resolve) => {
+        const tx = db.transaction('pending', 'readonly');
+        const req = tx.objectStore('pending').getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve([]);
+    });
+}
+
+async function clearPending() {
+    const db = await openOfflineDB();
+    const tx = db.transaction('pending', 'readwrite');
+    tx.objectStore('pending').clear();
+    return tx.complete;
+}
+
+async function syncPending() {
+    const items = await getPending();
+    if (items.length === 0) return;
+    let success = true;
+    for (const item of items) {
+        try {
+            const opts = { method: item.method, headers: { 'Content-Type': 'application/json' } };
+            if (item.body) opts.body = item.body;
+            const r = await fetch(item.url, opts);
+            if (!r.ok) { success = false; break; }
+        } catch (e) { success = false; break; }
+    }
+    if (success) await clearPending();
+}
+
+// ========== 安装/激活 ==========
 self.addEventListener('install', e => {
+    e.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+            return Promise.allSettled(ASSETS.map(url =>
+                fetch(url, { cache: 'no-cache' }).then(resp => {
+                    if (resp.ok) cache.put(url, resp.clone());
+                }).catch(() => {})
+            ));
+        })
+    );
     self.skipWaiting();
 });
+
 self.addEventListener('activate', e => {
-    e.waitUntil(caches.keys().then(keys =>
-        Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))
-    ));
-    e.waitUntil(self.clients.claim());
-});
-self.addEventListener('fetch', e => {
-    if (e.request.method !== 'GET') return;
-    const url = new URL(e.request.url);
-    if (url.pathname.startsWith('/api/')) return;
-    e.respondWith(
-        fetch(e.request).then(res => {
-            if (res.ok && url.pathname === '/') {
-                const clone = res.clone();
-                caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-            }
-            return res;
-        }).catch(() => caches.match(e.request).then(r => r || caches.match('/')))
+    e.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))
+        )
     );
+    e.waitUntil(self.clients.claim());
+    // 网络恢复后自动同步
+    e.waitUntil(syncPending());
+});
+
+// ========== Stale-While-Revalidate + 离线写入 ==========
+self.addEventListener('fetch', e => {
+    const url = new URL(e.request.url);
+
+    // API POST/PUT/DELETE：离线时存入 IndexedDB 等待同步
+    if (url.pathname.startsWith('/api/') && e.request.method !== 'GET') {
+        e.respondWith(
+            fetch(e.request.clone()).catch(async () => {
+                // 只缓存写入请求
+                if (['POST', 'PUT', 'DELETE'].includes(e.request.method)) {
+                    const body = e.request.method !== 'DELETE' ? await e.request.clone().text() : null;
+                    await storePending({ url: e.request.url, method: e.request.method, body: body });
+                    return new Response(JSON.stringify({ ok: true, offline: true, message: '已离线保存，网络恢复后自动同步' }), {
+                        status: 200, headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                return new Response(JSON.stringify({ ok: false, error: '网络不可用' }), {
+                    status: 503, headers: { 'Content-Type': 'application/json' }
+                });
+            })
+        );
+        return;
+    }
+
+    // GET 请求：SWR 策略（优先缓存，后台更新）
+    if (e.request.method === 'GET') {
+        // 跳过 API（不缓存数据接口）
+        if (url.pathname.startsWith('/api/')) return;
+
+        // ECharts CDN：缓存更久
+        if (url.hostname === 'cdn.jsdelivr.net') {
+            e.respondWith(
+                caches.match(e.request).then(cached => {
+                    const fetchPromise = fetch(e.request).then(resp => {
+                        if (resp.ok) {
+                            const clone = resp.clone();
+                            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+                        }
+                        return resp;
+                    });
+                    return cached || fetchPromise;
+                })
+            );
+            return;
+        }
+
+        // 页面资源：SWR
+        e.respondWith(
+            caches.match(e.request).then(cached => {
+                const fetchPromise = fetch(e.request).then(resp => {
+                    if (resp.ok) {
+                        const clone = resp.clone();
+                        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+                    }
+                    return resp;
+                }).catch(() => cached);
+                return cached || fetchPromise;
+            })
+        );
+    }
 });
 '''
     return app.response_class(sw, mimetype='application/javascript')

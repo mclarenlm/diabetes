@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%232c7a7b'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3E🍃%3C/text%3E%3C/svg%3E">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <title>糖尿病个性化治疗与控糖方案 - 记录工具</title>
     <style>
         :root {
@@ -725,7 +726,7 @@
                 <option value="all">全部</option>
             </select>
         </div>
-        <canvas id="glucoseCanvas" width="800" height="300"></canvas>
+        <div id="glucoseChart" style="width:100%; height:320px;"></div>
     </div>
 
     <div class="dual-layout">
@@ -829,10 +830,14 @@
         </form>
     </div>
 
-    <!-- 体重趋势图 -->
+    <!-- 体重与HbA1c趋势图 -->
     <div class="card chart-card" id="weightChartCard">
         <h2><span class="icon">📈</span> 体重变化趋势</h2>
-        <canvas id="weightCanvas" width="800" height="250"></canvas>
+        <div id="weightChart" style="width:100%; height:260px;"></div>
+    </div>
+    <div class="card chart-card" id="hba1cChartCard">
+        <h2><span class="icon">📊</span> 糖化血红蛋白 (HbA1c) 趋势</h2>
+        <div id="hba1cChart" style="width:100%; height:260px;"></div>
     </div>
 
     <div class="card">
@@ -1045,9 +1050,24 @@ async function apiFetch(url, options) {
     return r;
 }
 async function apiGet(url) { const r = await apiFetch(url); return await r.json(); }
-async function apiPost(url, data) { const r = await apiFetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); return await r.json(); }
-async function apiPut(url, data) { const r = await apiFetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); return await r.json(); }
-async function apiDelete(url) { const r = await apiFetch(url, { method: 'DELETE' }); return await r.json(); }
+async function apiPost(url, data) {
+    const r = await apiFetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    const d = await r.json();
+    if (d.offline) showToast('📡 已离线保存，恢复网络后自动同步', 'warn');
+    return d;
+}
+async function apiPut(url, data) {
+    const r = await apiFetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    const d = await r.json();
+    if (d.offline) showToast('📡 已离线保存，恢复网络后自动同步', 'warn');
+    return d;
+}
+async function apiDelete(url) {
+    const r = await apiFetch(url, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.offline) showToast('📡 已离线保存，恢复网络后自动同步', 'warn');
+    return d;
+}
 
 function showLoginOverlay() {
     const o = document.getElementById('loginOverlay');
@@ -2260,15 +2280,16 @@ async function restoreData() {
     reader.readAsText(file);
 }
 
-// ===== 血糖趋势图（Canvas） =====
+// ===== 血糖趋势图（ECharts） =====
+let gluChartInstance = null;
 function renderGlucoseChart() {
-    const canvas = document.getElementById('glucoseCanvas');
-    const ctx = canvas.getContext('2d');
+    const dom = document.getElementById('glucoseChart');
+    if (!dom || dom.offsetParent === null) return;
+    if (!gluChartInstance) gluChartInstance = echarts.init(dom);
     const typeFilter = document.getElementById('gluChartType').value;
     const rangeDays = document.getElementById('gluChartRange').value;
     const isDark = document.body.classList.contains('dark');
 
-    // 过滤数据
     let data = [...glucoseRecords];
     if (typeFilter !== '全部') data = data.filter(r => r.type === typeFilter);
     if (rangeDays !== 'all') {
@@ -2279,345 +2300,152 @@ function renderGlucoseChart() {
     }
     data.sort((a, b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''));
 
-    // 画布尺寸
-    const rect = canvas.parentElement.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = 300 * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = '300px';
-    ctx.scale(dpr, dpr);
-    const W = rect.width;
-    const H = 300;
+    const series = [];
+    const types = ['空腹', '餐后1h', '餐后2h', '睡前', '运动前', '运动后', '随机'];
+    const colors = ['#3182ce', '#e53e3e', '#dd6b20', '#805ad5', '#38a169', '#d69e2e', '#718096'];
+    const markers = ['circle', 'diamond', 'rect', 'triangle', 'arrow', 'pin', 'roundRect'];
 
-    // 清空
-    ctx.clearRect(0, 0, W, H);
-
-    // 背景
-    ctx.fillStyle = isDark ? '#1e252e' : '#ffffff';
-    ctx.fillRect(0, 0, W, H);
-
-    if (data.length === 0) {
-        ctx.fillStyle = isDark ? '#8b9eb0' : '#718096';
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('暂无数据', W / 2, H / 2);
-        return;
-    }
-
-    const padL = 50, padR = 20, padT = 30, padB = 40;
-    const chartW = W - padL - padR;
-    const chartH = H - padT - padB;
-
-    // Y轴范围
-    const values = data.map(r => parseFloat(r.value));
-    let yMin = Math.min(2, Math.min(...values) - 1);
-    let yMax = Math.max(12, Math.max(...values) + 1);
-
-    // 绘制网格
-    ctx.strokeStyle = isDark ? '#313d4a' : '#e2e8f0';
-    ctx.lineWidth = 0.5;
-    const ySteps = 5;
-    for (let i = 0; i <= ySteps; i++) {
-        const y = padT + (chartH / ySteps) * i;
-        ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(W - padR, y);
-        ctx.stroke();
-
-        const val = yMax - ((yMax - yMin) / ySteps) * i;
-        ctx.fillStyle = isDark ? '#8b9eb0' : '#718096';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(val.toFixed(1), padL - 8, y + 4);
-    }
-
-    // 参考线 - 根据类型
-    const fastT = parseFloat(profileData.glucose_fasting_target) || 5.6;
-    const postT = parseFloat(profileData.glucose_post_target) || 7.8;
-
-    const drawRefLine = (val, color, label) => {
-        if (val < yMin || val > yMax) return;
-        const y = padT + chartH * (1 - (val - yMin) / (yMax - yMin));
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 3]);
-        ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(W - padR, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = color;
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, W - padR + 2, y - 2);
-    };
-
-    if (typeFilter === '空腹' || typeFilter === '全部') {
-        drawRefLine(fastT, isDark ? '#fc8181' : '#e53e3e', '空腹目标');
-    }
-    if (typeFilter === '餐后2h' || typeFilter === '全部') {
-        drawRefLine(postT, isDark ? '#f6ad55' : '#dd6b20', '餐后2h目标');
-    }
-    drawRefLine(3.9, isDark ? '#fc8181' : '#e53e3e', '低血糖');
-
-    // 数据点和折线
-    const getX = (i) => padL + (chartW / (data.length - 1 || 1)) * i;
-    const getY = (v) => padT + chartH * (1 - (v - yMin) / (yMax - yMin));
-
-    // 折线
-    ctx.strokeStyle = isDark ? '#4fd1c5' : '#2c7a7b';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    data.forEach((r, i) => {
-        const x = getX(i);
-        const y = getY(parseFloat(r.value));
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    // 数据点
-    data.forEach((r, i) => {
-        const x = getX(i);
-        const v = parseFloat(r.value);
-        const y = getY(v);
-
-        let color;
-        if (v < 3.9) color = '#e53e3e';
-        else if (r.type === '空腹' && v > fastT) color = '#dd6b20';
-        else if (r.type === '餐后2h' && v >= postT) color = '#dd6b20';
-        else color = '#38a169';
-
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // X轴标签（日期）
-        if (data.length <= 15 || i % Math.ceil(data.length / 10) === 0) {
-            ctx.fillStyle = isDark ? '#8b9eb0' : '#718096';
-            ctx.font = '9px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(formatDate(r.date), x, H - padB + 14);
+    if (typeFilter === '全部') {
+        types.forEach((tp, idx) => {
+            const pts = data.filter(r => r.type === tp).map(r => ({
+                value: [r.date + (r.time ? ' ' + r.time : ''), parseFloat(r.value)],
+                note: r.note || ''
+            }));
+            if (pts.length > 0) {
+                series.push({
+                    name: tp, type: 'line', data: pts,
+                    symbol: markers[idx], symbolSize: 6,
+                    lineStyle: { width: 1.5 }, itemStyle: { color: colors[idx] },
+                    emphasis: { focus: 'series' }
+                });
+            }
+        });
+    } else {
+        const pts = data.map(r => ({
+            value: [r.date + (r.time ? ' ' + r.time : ''), parseFloat(r.value)],
+            note: r.note || ''
+        }));
+        if (pts.length > 0) {
+            series.push({
+                name: typeFilter, type: 'line', data: pts,
+                symbol: 'circle', symbolSize: 7, smooth: true,
+                areaStyle: { opacity: 0.08 },
+                lineStyle: { width: 2.5, color: '#3182ce' },
+                itemStyle: { color: '#3182ce' },
+                markLine: {
+                    silent: true,
+                    data: [{ yAxis: 7.8, label: { formatter: '餐后目标 7.8' }, lineStyle: { color: '#e53e3e', type: 'dashed' } },
+                           { yAxis: 5.6, label: { formatter: '空腹目标 5.6' }, lineStyle: { color: '#38a169', type: 'dashed' } }]
+                }
+            });
         }
-    });
+    }
+
+    const option = {
+        backgroundColor: isDark ? '#1e252e' : '#fff',
+        tooltip: {
+            trigger: 'axis',
+            formatter: function(ps) {
+                let s = ps[0].axisValue + '<br/>';
+                ps.forEach(p => { s += p.marker + ' ' + p.seriesName + ': <b>' + p.value[1] + '</b> mmol/L<br/>'; });
+                return s;
+            }
+        },
+        legend: {
+            type: 'scroll', bottom: 0, textStyle: { fontSize: 11, color: isDark ? '#aaa' : '#666' },
+            data: typeFilter === '全部' ? types.filter(tp => data.some(r => r.type === tp)) : [typeFilter]
+        },
+        grid: { left: 48, right: 16, top: 16, bottom: 36 },
+        xAxis: {
+            type: 'category', boundaryGap: false,
+            axisLine: { lineStyle: { color: isDark ? '#444' : '#ddd' } },
+            axisLabel: { fontSize: 10, color: isDark ? '#8b9eb0' : '#718096', rotate: data.length > 20 ? 30 : 0 },
+        },
+        yAxis: {
+            type: 'value', name: 'mmol/L', min: 2,
+            axisLine: { lineStyle: { color: isDark ? '#444' : '#ddd' } },
+            splitLine: { lineStyle: { color: isDark ? '#313d4a' : '#e2e8f0' } },
+            axisLabel: { fontSize: 10, color: isDark ? '#8b9eb0' : '#718096' },
+        },
+        series: series.length > 0 ? series : [{ type: 'line', data: [] }],
+        dataZoom: data.length > 30 ? [{ type: 'inside' }, { type: 'slider', bottom: 30, height: 16 }] : []
+    };
+    gluChartInstance.setOption(option, true);
 }
 
-// ===== 体重趋势图（Canvas） =====
+// ===== 体重 + HbA1c 趋势图（ECharts） =====
+let wtChartInstance = null, hba1cChartInstance = null;
 function renderWeightChart() {
-    const canvas = document.getElementById('weightCanvas');
-    const ctx = canvas.getContext('2d');
+    const dom = document.getElementById('weightChart');
+    if (!dom || dom.offsetParent === null) return;
+    if (!wtChartInstance) wtChartInstance = echarts.init(dom);
     const isDark = document.body.classList.contains('dark');
 
-    // 只取有体重数据的随访记录
     let data = followupRecords.filter(r => r.weight && parseFloat(r.weight) > 0);
     data.sort((a, b) => a.date.localeCompare(b.date));
-
-    const rect = canvas.parentElement.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = 250 * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = '250px';
-    ctx.scale(dpr, dpr);
-    const W = rect.width;
-    const H = 250;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = isDark ? '#1e252e' : '#ffffff';
-    ctx.fillRect(0, 0, W, H);
-
-    if (data.length === 0) {
-        ctx.fillStyle = isDark ? '#8b9eb0' : '#718096';
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('暂无体重数据，请在随访记录中录入', W / 2, H / 2);
-        return;
-    }
-
-    const padL = 50, padR = 20, padT = 30, padB = 40;
-    const chartW = W - padL - padR;
-    const chartH = H - padT - padB;
-
-    const values = data.map(r => parseFloat(r.weight));
-    let yMin = Math.min(...values) - 2;
-    let yMax = Math.max(...values) + 2;
     const wTarget = parseFloat(goalsData.weight) || 56;
-    yMax = Math.max(yMax, wTarget + 1);
 
-    // 网格
-    ctx.strokeStyle = isDark ? '#313d4a' : '#e2e8f0';
-    ctx.lineWidth = 0.5;
-    const ySteps = 5;
-    for (let i = 0; i <= ySteps; i++) {
-        const y = padT + (chartH / ySteps) * i;
-        ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(W - padR, y);
-        ctx.stroke();
-        const val = yMax - ((yMax - yMin) / ySteps) * i;
-        ctx.fillStyle = isDark ? '#8b9eb0' : '#718096';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(val.toFixed(1) + 'kg', padL - 8, y + 4);
-    }
+    const pts = data.map(r => [r.date, parseFloat(r.weight)]);
+    const option = {
+        backgroundColor: isDark ? '#1e252e' : '#fff',
+        tooltip: { trigger: 'axis', formatter: p => p[0].axisValue + '<br/>体重: <b>' + p[0].value[1] + '</b> kg' },
+        grid: { left: 50, right: 20, top: 12, bottom: 30 },
+        xAxis: {
+            type: 'category', boundaryGap: false,
+            axisLabel: { fontSize: 10, color: isDark ? '#8b9eb0' : '#718096' },
+            axisLine: { lineStyle: { color: isDark ? '#444' : '#ddd' } }
+        },
+        yAxis: {
+            type: 'value', name: 'kg',
+            axisLabel: { fontSize: 10, color: isDark ? '#8b9eb0' : '#718096' },
+            splitLine: { lineStyle: { color: isDark ? '#313d4a' : '#e2e8f0' } }
+        },
+        series: [{
+            name: '体重', type: 'line', data: pts, symbol: 'circle', symbolSize: 7,
+            smooth: true, areaStyle: { opacity: 0.1 },
+            lineStyle: { width: 2.5, color: '#3182ce' },
+            itemStyle: { color: '#3182ce' },
+            markLine: {
+                silent: true, symbol: 'none',
+                data: [{ yAxis: wTarget, label: { formatter: '目标 ' + wTarget + 'kg' }, lineStyle: { color: '#e53e3e', type: 'dashed', width: 1.5 } }]
+            }
+        }]
+    };
+    wtChartInstance.setOption(option, true);
 
-    // 目标线
-    const targetY = padT + chartH * (1 - (wTarget - yMin) / (yMax - yMin));
-    ctx.strokeStyle = isDark ? '#68d391' : '#38a169';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 3]);
-    ctx.beginPath();
-    ctx.moveTo(padL, targetY);
-    ctx.lineTo(W - padR, targetY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = isDark ? '#68d391' : '#38a169';
-    ctx.font = '10px sans-serif';
-    ctx.fillText('目标 ' + wTarget + 'kg', W - padR + 2, targetY - 2);
-
-    // 折线
-    const getX = (i) => padL + (chartW / (data.length - 1 || 1)) * i;
-    const getY = (v) => padT + chartH * (1 - (v - yMin) / (yMax - yMin));
-
-    ctx.strokeStyle = isDark ? '#4fd1c5' : '#2c7a7b';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    data.forEach((r, i) => {
-        const x = getX(i);
-        const y = getY(parseFloat(r.weight));
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    // 数据点
-    data.forEach((r, i) => {
-        const x = getX(i);
-        const v = parseFloat(r.weight);
-        const y = getY(v);
-        ctx.fillStyle = v >= wTarget ? '#38a169' : '#dd6b20';
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = isDark ? '#8b9eb0' : '#718096';
-        ctx.font = '9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(formatDate(r.date), x, H - padB + 14);
-    });
-}
-
-// ===== 初始化 =====
-async function loadAll() {
-    await loadProfile();
-    await loadDiet();
-    await loadExercise();
-    await loadGlucose();
-    await loadMedication();
-    await loadFollowup();
-    await loadGoals();
-    await loadCustomDrugs();
-    await loadMealTemplates();
-    await loadMembers();
-    await updateTodayOverview();
-    await checkAuthStatus();
-}
-
-// ===== 食物GI数据库 =====
-const GI_DATA = [
-    // 主食类
-    {name:'白米饭', gi:83, cat:'主食'}, {name:'糙米饭', gi:50, cat:'主食'},
-    {name:'白粥', gi:90, cat:'主食'}, {name:'小米粥', gi:62, cat:'主食'},
-    {name:'燕麦片', gi:55, cat:'主食'}, {name:'即食燕麦', gi:79, cat:'主食'},
-    {name:'白面包', gi:75, cat:'主食'}, {name:'全麦面包', gi:50, cat:'主食'},
-    {name:'馒头', gi:88, cat:'主食'}, {name:'面条', gi:82, cat:'主食'},
-    {name:'荞麦面', gi:59, cat:'主食'}, {name:'红薯', gi:54, cat:'主食'},
-    {name:'紫薯', gi:48, cat:'主食'}, {name:'土豆(煮)', gi:66, cat:'主食'},
-    {name:'土豆泥', gi:87, cat:'主食'}, {name:'玉米', gi:55, cat:'主食'},
-    {name:'糯米饭', gi:87, cat:'主食'}, {name:'藜麦', gi:53, cat:'主食'},
-    {name:'意大利面', gi:45, cat:'主食'}, {name:'饺子', gi:60, cat:'主食'},
-    // 水果类
-    {name:'苹果', gi:36, cat:'水果'}, {name:'香蕉', gi:52, cat:'水果'},
-    {name:'熟香蕉', gi:62, cat:'水果'}, {name:'橙子', gi:43, cat:'水果'},
-    {name:'葡萄', gi:43, cat:'水果'}, {name:'西瓜', gi:72, cat:'水果'},
-    {name:'草莓', gi:40, cat:'水果'}, {name:'蓝莓', gi:34, cat:'水果'},
-    {name:'梨', gi:38, cat:'水果'}, {name:'桃子', gi:42, cat:'水果'},
-    {name:'猕猴桃', gi:50, cat:'水果'}, {name:'芒果', gi:51, cat:'水果'},
-    {name:'菠萝', gi:66, cat:'水果'}, {name:'榴莲', gi:42, cat:'水果'},
-    {name:'樱桃', gi:22, cat:'水果'}, {name:'柚子', gi:25, cat:'水果'},
-    {name:'哈密瓜', gi:65, cat:'水果'}, {name:'木瓜', gi:59, cat:'水果'},
-    // 蔬菜类
-    {name:'西兰花', gi:15, cat:'蔬菜'}, {name:'菠菜', gi:15, cat:'蔬菜'},
-    {name:'生菜', gi:15, cat:'蔬菜'}, {name:'黄瓜', gi:15, cat:'蔬菜'},
-    {name:'番茄', gi:15, cat:'蔬菜'}, {name:'胡萝卜(生)', gi:16, cat:'蔬菜'},
-    {name:'胡萝卜(煮)', gi:39, cat:'蔬菜'}, {name:'白菜', gi:15, cat:'蔬菜'},
-    {name:'芹菜', gi:15, cat:'蔬菜'}, {name:'豆芽', gi:15, cat:'蔬菜'},
-    {name:'茄子', gi:15, cat:'蔬菜'}, {name:'青椒', gi:15, cat:'蔬菜'},
-    {name:'洋葱', gi:10, cat:'蔬菜'}, {name:'蘑菇', gi:10, cat:'蔬菜'},
-    {name:'木耳', gi:15, cat:'蔬菜'}, {name:'南瓜', gi:65, cat:'蔬菜'},
-    // 蛋白质
-    {name:'鸡蛋', gi:0, cat:'蛋白质'}, {name:'鸡胸肉', gi:0, cat:'蛋白质'},
-    {name:'牛肉', gi:0, cat:'蛋白质'}, {name:'猪肉', gi:0, cat:'蛋白质'},
-    {name:'鱼肉', gi:0, cat:'蛋白质'}, {name:'虾', gi:0, cat:'蛋白质'},
-    {name:'豆腐', gi:15, cat:'蛋白质'}, {name:'豆浆', gi:15, cat:'蛋白质'},
-    {name:'牛奶', gi:27, cat:'蛋白质'}, {name:'酸奶', gi:36, cat:'蛋白质'},
-    {name:'奶酪', gi:0, cat:'蛋白质'}, {name:'黄豆', gi:18, cat:'蛋白质'},
-    // 豆类/坚果
-    {name:'绿豆', gi:27, cat:'豆类'}, {name:'红豆', gi:23, cat:'豆类'},
-    {name:'黑豆', gi:30, cat:'豆类'}, {name:'鹰嘴豆', gi:28, cat:'豆类'},
-    {name:'花生', gi:14, cat:'坚果'}, {name:'核桃', gi:15, cat:'坚果'},
-    {name:'杏仁', gi:15, cat:'坚果'}, {name:'腰果', gi:22, cat:'坚果'},
-    // 零食/饮品
-    {name:'可乐', gi:63, cat:'饮品'}, {name:'橙汁', gi:50, cat:'饮品'},
-    {name:'苹果汁', gi:44, cat:'饮品'}, {name:'蜂蜜', gi:55, cat:'其他'},
-    {name:'巧克力', gi:40, cat:'零食'}, {name:'薯片', gi:60, cat:'零食'},
-    {name:'冰淇淋', gi:62, cat:'零食'}, {name:'蛋糕', gi:80, cat:'零食'},
-    {name:'饼干', gi:70, cat:'零食'}, {name:'爆米花', gi:65, cat:'零食'},
-];
-
-function giBadge(gi) {
-    if (gi === 0) return '<span class="gi-badge" style="background:var(--badge-normal-bg);color:var(--success);">低GI(蛋白质)</span>';
-    if (gi < 55) return `<span class="gi-badge gi-low">低GI ${gi}</span>`;
-    if (gi <= 70) return `<span class="gi-badge gi-med">中GI ${gi}</span>`;
-    return `<span class="gi-badge gi-high">高GI ${gi}</span>`;
-}
-
-function filterGI() {
-    const kw = document.getElementById('giSearch').value.trim().toLowerCase();
-    let data = GI_DATA;
-    if (kw) data = GI_DATA.filter(r => r.name.toLowerCase().includes(kw) || r.cat.includes(kw));
-    // 按GI排序：低→高
-    data.sort((a, b) => a.gi - b.gi);
-
-    const container = document.getElementById('giResults');
-    if (data.length === 0) {
-        container.innerHTML = '<div class="empty-state">未找到匹配食物</div>';
-        return;
-    }
-    container.innerHTML = data.map(r => `
-        <div class="gi-item" onclick="insertFoodToDiet('${r.name}')">
-            <div>
-                <span style="font-weight:600;">${r.name}</span>
-                <span style="font-size:0.72rem; color:var(--text-light); margin-left:6px;">${r.cat}</span>
-            </div>
-            ${giBadge(r.gi)}
-        </div>
-    `).join('');
-}
-
-function insertFoodToDiet(name) {
-    // 切换到饮食Tab并填充食物名
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
-    document.querySelector('[data-tab="diet"]').classList.add('active');
-    document.getElementById('tab-diet').classList.add('active');
-    const foodInput = document.getElementById('dietFood');
-    if (foodInput.value) foodInput.value += '+' + name;
-    else foodInput.value = name;
-    foodInput.focus();
-    showToast('✅ 已填入：' + name);
+    // HbA1c 图
+    const hbDom = document.getElementById('hba1cChart');
+    if (!hbDom || hbDom.offsetParent === null) return;
+    if (!hba1cChartInstance) hba1cChartInstance = echarts.init(hbDom);
+    let hbData = followupRecords.filter(r => r.hba1c && parseFloat(r.hba1c) > 0);
+    hbData.sort((a, b) => a.date.localeCompare(b.date));
+    const hbPts = hbData.map(r => [r.date, parseFloat(r.hba1c)]);
+    const hbOption = {
+        backgroundColor: isDark ? '#1e252e' : '#fff',
+        tooltip: { trigger: 'axis', formatter: p => p[0].axisValue + '<br/>HbA1c: <b>' + p[0].value[1] + '</b>%' },
+        grid: { left: 50, right: 20, top: 12, bottom: 30 },
+        xAxis: {
+            type: 'category', boundaryGap: false,
+            axisLabel: { fontSize: 10, color: isDark ? '#8b9eb0' : '#718096' },
+            axisLine: { lineStyle: { color: isDark ? '#444' : '#ddd' } }
+        },
+        yAxis: {
+            type: 'value', name: '%', min: 4,
+            axisLabel: { fontSize: 10, color: isDark ? '#8b9eb0' : '#718096' },
+            splitLine: { lineStyle: { color: isDark ? '#313d4a' : '#e2e8f0' } }
+        },
+        series: [{
+            name: 'HbA1c', type: 'line', data: hbPts, symbol: 'diamond', symbolSize: 8,
+            smooth: true, areaStyle: { opacity: 0.12 },
+            lineStyle: { width: 2.5, color: '#805ad5' },
+            itemStyle: { color: '#805ad5' },
+            markLine: {
+                silent: true, symbol: 'none',
+                data: [{ yAxis: 7.0, label: { formatter: '控制目标 7.0%' }, lineStyle: { color: '#e53e3e', type: 'dashed', width: 1.5 } }]
+            }
+        }]
+    };
+    hba1cChartInstance.setOption(hbOption, true);
 }
 
 // ===== 月度报告 =====
