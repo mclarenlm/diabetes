@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2c7a7b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%232c7a7b'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3E🍃%3C/text%3E%3C/svg%3E">
     <title>糖尿病个性化治疗与控糖方案 - 记录工具</title>
     <style>
         :root {
@@ -74,9 +79,9 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
-        .container { max-width: 900px; margin: 0 auto; padding: 0 16px 24px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 20px 24px; }
         .header { background: var(--header-bg); padding: 18px 0; color: white; position: sticky; top: 0; z-index: 100; }
-        .header-inner { max-width: 900px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 12px; }
+        .header-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 12px; }
         .header h1 { font-size: 1.1rem; font-weight: 600; }
         .date-display { font-size: 0.85rem; opacity: 0.9; white-space: nowrap; }
         .theme-toggle { background: rgba(255,255,255,0.15); border: none; border-radius: 8px; padding: 6px 10px; font-size: 1.2rem; cursor: pointer; color: white; }
@@ -88,7 +93,7 @@
         .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow); }
         .card h2 { font-size: 1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
         .card h2 .icon { font-size: 1.1rem; }
-        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 12px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         .form-group label { font-size: 0.78rem; color: var(--text-light); font-weight: 500; }
         .form-group input, .form-group select, .form-group textarea { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; background: var(--input-bg); color: var(--text); }
@@ -109,7 +114,7 @@
         .badge-high { background: var(--badge-high-bg); color: var(--danger); }
         .badge-warn { background: var(--badge-warn-bg); color: var(--warning); }
         .badge-danger { background: var(--badge-high-bg); color: var(--danger); font-size: 0.82rem; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
         .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 12px; text-align: center; }
         .stat-card.danger { background: var(--overview-danger); border-color: #fc8181; }
         .stat-card.warning { background: var(--overview-warn); border-color: #f6ad55; }
@@ -168,6 +173,21 @@
         .backup-section { margin-top: 16px; padding: 14px; background: var(--primary-light); border-radius: 10px; }
         body.dark .backup-section { background: #1a3c3d; }
         .backup-section h3 { font-size: 0.9rem; margin-bottom: 10px; }
+
+        /* 双列布局：PC端表单+列表左右并排 */
+        .dual-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .dual-layout .dual-left, .dual-layout .dual-right { min-width: 0; }
+        @media (max-width: 1024px) { .dual-layout { grid-template-columns: 1fr; } }
+
+        /* GI查询 */
+        .gi-search-box { position: relative; }
+        .gi-results { max-height: 320px; overflow-y: auto; }
+        .gi-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .gi-item:hover { background: var(--table-hover); }
+        .gi-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+        .gi-low { background: var(--badge-normal-bg); color: var(--success); }
+        .gi-med { background: var(--badge-warn-bg); color: var(--warning); }
+        .gi-high { background: var(--badge-high-bg); color: var(--danger); }
 
         @media (max-width: 768px) {
             .form-group input, .form-group select, .form-group textarea { font-size: 16px; padding: 10px; }
@@ -229,6 +249,7 @@
     <button class="tab-btn" data-tab="exercise" draggable="true"><span class="emoji">🏃</span><span class="icon-text">运动</span></button>
     <button class="tab-btn" data-tab="glucose" draggable="true"><span class="emoji">🩸</span><span class="icon-text">血糖</span></button>
     <button class="tab-btn" data-tab="followup" draggable="true"><span class="emoji">🎯</span><span class="icon-text">目标</span></button>
+    <button class="tab-btn" data-tab="gi" draggable="true"><span class="emoji">🥗</span><span class="icon-text">GI查询</span></button>
     <button class="tab-btn" data-tab="profile" draggable="true"><span class="emoji">⚙️</span><span class="icon-text">设置</span></button>
 </nav>
 
@@ -399,6 +420,18 @@
         <button class="btn btn-sm" onclick="cancelEdit('diet')" style="background:var(--danger); color:white;">取消编辑</button>
     </div>
 
+    <!-- 饮食模板 -->
+    <div class="card" id="mealTemplateCard">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="margin-bottom:0;"><span class="icon">🍱</span> 饮食模板</h2>
+            <button type="button" class="btn btn-sm" onclick="saveCurrentAsTemplate()" style="background:var(--primary); color:white;">💾 存为模板</button>
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:10px;">点击模板一键填充到表单，免去重复输入常用餐食</p>
+        <div id="templateList" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px;"></div>
+    </div>
+
+    <div class="dual-layout">
+    <div class="dual-left">
     <div class="card">
         <h2><span class="icon">📝</span> 添加饮食记录</h2>
         <form id="dietForm">
@@ -449,7 +482,9 @@
             <button type="submit" class="btn btn-primary" id="dietSubmitBtn">➕ 添加记录</button>
         </form>
     </div>
+    </div>
 
+    <div class="dual-right">
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h2 style="margin-bottom:0;"><span class="icon">📋</span> 饮食记录列表</h2>
@@ -461,6 +496,8 @@
                 <tbody id="dietTbody"><tr><td colspan="8" class="empty-state">暂无记录</td></tr></tbody>
             </table>
         </div>
+    </div>
+    </div>
     </div>
 </section>
 
@@ -589,6 +626,8 @@
         <canvas id="glucoseCanvas" width="800" height="300"></canvas>
     </div>
 
+    <div class="dual-layout">
+    <div class="dual-left">
     <div class="card">
         <h2><span class="icon">📝</span> 添加血糖记录</h2>
         <form id="glucoseForm">
@@ -628,7 +667,9 @@
             <button type="submit" class="btn btn-primary" id="gluSubmitBtn">➕ 添加记录</button>
         </form>
     </div>
+    </div>
 
+    <div class="dual-right">
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h2 style="margin-bottom:0;"><span class="icon">📋</span> 血糖记录列表</h2>
@@ -640,6 +681,8 @@
                 <tbody id="glucoseTbody"><tr><td colspan="7" class="empty-state">暂无记录</td></tr></tbody>
             </table>
         </div>
+    </div>
+    </div>
     </div>
 </section>
 
@@ -733,7 +776,23 @@
 </section>
 
 <!-- ============================================= -->
-<!-- TAB 6: 个人设置 -->
+<!-- TAB 6: 食物GI查询 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-gi">
+    <div class="card">
+        <h2><span class="icon">🥗</span> 食物升糖指数(GI)查询</h2>
+        <p style="font-size:0.82rem; color:var(--text-light); margin-bottom:12px;">
+            GI &lt; 55 为低GI（推荐），55-70 为中GI（适量），&gt; 70 为高GI（少吃）
+        </p>
+        <div class="gi-search-box">
+            <input type="text" id="giSearch" placeholder="输入食物名称搜索，如：米饭、苹果、燕麦..." style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem; background:var(--input-bg); color:var(--text);" oninput="filterGI()">
+        </div>
+        <div id="giResults" class="gi-results" style="margin-top:12px;"></div>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 7: 个人设置 -->
 <!-- ============================================= -->
 <section class="tab-content" id="tab-profile">
     <div class="card">
@@ -818,6 +877,7 @@ const API = {
     followup: '/api/followup',
     goals: '/api/goals',
     customDrugs: '/api/custom-drugs',
+    mealTemplates: '/api/meal-templates',
     backup: '/api/backup',
     restore: '/api/restore'
 };
@@ -830,6 +890,7 @@ let medRecords = [];
 let followupRecords = [];
 let goalsData = { weight: '56', glucose: '7.8' };
 let customDrugs = [];
+let mealTemplates = [];
 
 let editingId = null;
 let editingType = null;
@@ -1262,6 +1323,57 @@ async function updateTodayOverview() {
         ).join('');
     }
 }
+
+// ===== 饮食模板 =====
+async function loadMealTemplates() {
+    try { mealTemplates = await apiGet(API.mealTemplates); } catch { mealTemplates = []; }
+    renderMealTemplates();
+}
+
+function renderMealTemplates() {
+    const container = document.getElementById('templateList');
+    if (mealTemplates.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-light); font-size:0.85rem; padding:8px;">暂无模板，填写表单后点击"存为模板"创建</div>';
+        return;
+    }
+    container.innerHTML = mealTemplates.map(t => `
+        <div style="position:relative; background:var(--primary-light); border-radius:8px; padding:10px 12px; cursor:pointer; border:1px solid var(--border);" onclick="applyTemplate(${t.id})">
+            <div style="font-weight:600; font-size:0.85rem; margin-bottom:4px;">🍱 ${t.name}</div>
+            <div style="font-size:0.78rem; color:var(--text-light);">${t.meal} · ${t.food}</div>
+            ${t.calories ? `<div style="font-size:0.72rem; color:var(--text-light);">${t.calories} kcal</div>` : ''}
+            <button onclick="event.stopPropagation(); deleteTemplate(${t.id})" style="position:absolute; top:6px; right:6px; background:var(--danger); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:0.7rem; line-height:1;">×</button>
+        </div>
+    `).join('');
+}
+
+function applyTemplate(id) {
+    const t = mealTemplates.find(r => r.id === id);
+    if (!t) return;
+    document.getElementById('dietMeal').value = t.meal || '早餐';
+    document.getElementById('dietFood').value = t.food || '';
+    document.getElementById('dietCalories').value = t.calories || '';
+    if (t.eating_order) document.getElementById('dietOrder').value = t.eating_order;
+    showToast('✅ 已填充模板：' + t.name);
+}
+
+window.saveCurrentAsTemplate = async function() {
+    const food = document.getElementById('dietFood').value.trim();
+    const meal = document.getElementById('dietMeal').value;
+    const calories = document.getElementById('dietCalories').value;
+    const order = document.getElementById('dietOrder').value;
+    if (!food) { alert('请先填写食物内容'); return; }
+    const name = prompt('给这个模板取个名字：', meal + '-' + food.slice(0, 10));
+    if (!name) return;
+    await apiPost(API.mealTemplates, { name, meal, food, calories, eating_order: order });
+    await loadMealTemplates();
+    showToast('✅ 模板已保存：' + name);
+};
+
+window.deleteTemplate = async function(id) {
+    if (!confirm('确定删除这个模板吗？')) return;
+    await apiDelete(API.mealTemplates + '/' + id);
+    await loadMealTemplates();
+};
 
 // ===== DIET =====
 async function loadDiet() { dietRecords = await apiGet(API.diet); renderDiet(); }
@@ -2036,7 +2148,108 @@ async function loadAll() {
     await loadFollowup();
     await loadGoals();
     await loadCustomDrugs();
+    await loadMealTemplates();
     await updateTodayOverview();
+}
+
+// ===== 食物GI数据库 =====
+const GI_DATA = [
+    // 主食类
+    {name:'白米饭', gi:83, cat:'主食'}, {name:'糙米饭', gi:50, cat:'主食'},
+    {name:'白粥', gi:90, cat:'主食'}, {name:'小米粥', gi:62, cat:'主食'},
+    {name:'燕麦片', gi:55, cat:'主食'}, {name:'即食燕麦', gi:79, cat:'主食'},
+    {name:'白面包', gi:75, cat:'主食'}, {name:'全麦面包', gi:50, cat:'主食'},
+    {name:'馒头', gi:88, cat:'主食'}, {name:'面条', gi:82, cat:'主食'},
+    {name:'荞麦面', gi:59, cat:'主食'}, {name:'红薯', gi:54, cat:'主食'},
+    {name:'紫薯', gi:48, cat:'主食'}, {name:'土豆(煮)', gi:66, cat:'主食'},
+    {name:'土豆泥', gi:87, cat:'主食'}, {name:'玉米', gi:55, cat:'主食'},
+    {name:'糯米饭', gi:87, cat:'主食'}, {name:'藜麦', gi:53, cat:'主食'},
+    {name:'意大利面', gi:45, cat:'主食'}, {name:'饺子', gi:60, cat:'主食'},
+    // 水果类
+    {name:'苹果', gi:36, cat:'水果'}, {name:'香蕉', gi:52, cat:'水果'},
+    {name:'熟香蕉', gi:62, cat:'水果'}, {name:'橙子', gi:43, cat:'水果'},
+    {name:'葡萄', gi:43, cat:'水果'}, {name:'西瓜', gi:72, cat:'水果'},
+    {name:'草莓', gi:40, cat:'水果'}, {name:'蓝莓', gi:34, cat:'水果'},
+    {name:'梨', gi:38, cat:'水果'}, {name:'桃子', gi:42, cat:'水果'},
+    {name:'猕猴桃', gi:50, cat:'水果'}, {name:'芒果', gi:51, cat:'水果'},
+    {name:'菠萝', gi:66, cat:'水果'}, {name:'榴莲', gi:42, cat:'水果'},
+    {name:'樱桃', gi:22, cat:'水果'}, {name:'柚子', gi:25, cat:'水果'},
+    {name:'哈密瓜', gi:65, cat:'水果'}, {name:'木瓜', gi:59, cat:'水果'},
+    // 蔬菜类
+    {name:'西兰花', gi:15, cat:'蔬菜'}, {name:'菠菜', gi:15, cat:'蔬菜'},
+    {name:'生菜', gi:15, cat:'蔬菜'}, {name:'黄瓜', gi:15, cat:'蔬菜'},
+    {name:'番茄', gi:15, cat:'蔬菜'}, {name:'胡萝卜(生)', gi:16, cat:'蔬菜'},
+    {name:'胡萝卜(煮)', gi:39, cat:'蔬菜'}, {name:'白菜', gi:15, cat:'蔬菜'},
+    {name:'芹菜', gi:15, cat:'蔬菜'}, {name:'豆芽', gi:15, cat:'蔬菜'},
+    {name:'茄子', gi:15, cat:'蔬菜'}, {name:'青椒', gi:15, cat:'蔬菜'},
+    {name:'洋葱', gi:10, cat:'蔬菜'}, {name:'蘑菇', gi:10, cat:'蔬菜'},
+    {name:'木耳', gi:15, cat:'蔬菜'}, {name:'南瓜', gi:65, cat:'蔬菜'},
+    // 蛋白质
+    {name:'鸡蛋', gi:0, cat:'蛋白质'}, {name:'鸡胸肉', gi:0, cat:'蛋白质'},
+    {name:'牛肉', gi:0, cat:'蛋白质'}, {name:'猪肉', gi:0, cat:'蛋白质'},
+    {name:'鱼肉', gi:0, cat:'蛋白质'}, {name:'虾', gi:0, cat:'蛋白质'},
+    {name:'豆腐', gi:15, cat:'蛋白质'}, {name:'豆浆', gi:15, cat:'蛋白质'},
+    {name:'牛奶', gi:27, cat:'蛋白质'}, {name:'酸奶', gi:36, cat:'蛋白质'},
+    {name:'奶酪', gi:0, cat:'蛋白质'}, {name:'黄豆', gi:18, cat:'蛋白质'},
+    // 豆类/坚果
+    {name:'绿豆', gi:27, cat:'豆类'}, {name:'红豆', gi:23, cat:'豆类'},
+    {name:'黑豆', gi:30, cat:'豆类'}, {name:'鹰嘴豆', gi:28, cat:'豆类'},
+    {name:'花生', gi:14, cat:'坚果'}, {name:'核桃', gi:15, cat:'坚果'},
+    {name:'杏仁', gi:15, cat:'坚果'}, {name:'腰果', gi:22, cat:'坚果'},
+    // 零食/饮品
+    {name:'可乐', gi:63, cat:'饮品'}, {name:'橙汁', gi:50, cat:'饮品'},
+    {name:'苹果汁', gi:44, cat:'饮品'}, {name:'蜂蜜', gi:55, cat:'其他'},
+    {name:'巧克力', gi:40, cat:'零食'}, {name:'薯片', gi:60, cat:'零食'},
+    {name:'冰淇淋', gi:62, cat:'零食'}, {name:'蛋糕', gi:80, cat:'零食'},
+    {name:'饼干', gi:70, cat:'零食'}, {name:'爆米花', gi:65, cat:'零食'},
+];
+
+function giBadge(gi) {
+    if (gi === 0) return '<span class="gi-badge" style="background:var(--badge-normal-bg);color:var(--success);">低GI(蛋白质)</span>';
+    if (gi < 55) return `<span class="gi-badge gi-low">低GI ${gi}</span>`;
+    if (gi <= 70) return `<span class="gi-badge gi-med">中GI ${gi}</span>`;
+    return `<span class="gi-badge gi-high">高GI ${gi}</span>`;
+}
+
+function filterGI() {
+    const kw = document.getElementById('giSearch').value.trim().toLowerCase();
+    let data = GI_DATA;
+    if (kw) data = GI_DATA.filter(r => r.name.toLowerCase().includes(kw) || r.cat.includes(kw));
+    // 按GI排序：低→高
+    data.sort((a, b) => a.gi - b.gi);
+
+    const container = document.getElementById('giResults');
+    if (data.length === 0) {
+        container.innerHTML = '<div class="empty-state">未找到匹配食物</div>';
+        return;
+    }
+    container.innerHTML = data.map(r => `
+        <div class="gi-item" onclick="insertFoodToDiet('${r.name}')">
+            <div>
+                <span style="font-weight:600;">${r.name}</span>
+                <span style="font-size:0.72rem; color:var(--text-light); margin-left:6px;">${r.cat}</span>
+            </div>
+            ${giBadge(r.gi)}
+        </div>
+    `).join('');
+}
+
+function insertFoodToDiet(name) {
+    // 切换到饮食Tab并填充食物名
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    document.querySelector('[data-tab="diet"]').classList.add('active');
+    document.getElementById('tab-diet').classList.add('active');
+    const foodInput = document.getElementById('dietFood');
+    if (foodInput.value) foodInput.value += '+' + name;
+    else foodInput.value = name;
+    foodInput.focus();
+    showToast('✅ 已填入：' + name);
+}
+
+// ===== PWA Service Worker 注册 =====
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 (async function init() {
@@ -2050,6 +2263,9 @@ async function loadAll() {
     document.getElementById('gluDate').value = today;
     document.getElementById('gluTime').value = new Date().toTimeString().slice(0,5);
     document.getElementById('fuDate').value = today;
+
+    // 初始化GI列表
+    filterGI();
 })();
 </script>
 </body>

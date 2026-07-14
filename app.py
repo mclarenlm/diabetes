@@ -77,6 +77,15 @@ def init_db():
                   glucose_fasting_target, glucose_post_target, weight_target)
                   VALUES (1, "175", "51", "35", "男", "5.6", "7.8", "56")''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS meal_templates
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT NOT NULL,
+                  meal TEXT NOT NULL,
+                  food TEXT NOT NULL,
+                  calories TEXT,
+                  eating_order TEXT,
+                  created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
+
     conn.commit()
     conn.close()
 
@@ -84,6 +93,56 @@ def init_db():
 @app.route('/')
 def index():
     return app.response_class(HTML_CONTENT, mimetype='text/html; charset=utf-8')
+
+
+@app.route('/manifest.json')
+def manifest():
+    m = {
+        "name": "糖尿病记录工具",
+        "short_name": "糖尿病记录",
+        "description": "糖尿病个性化治疗与控糖方案记录工具",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#f7fafc",
+        "theme_color": "#2c7a7b",
+        "icons": [
+            {"src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%232c7a7b'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3E🍃%3C/text%3E%3C/svg%3E", "sizes": "192x192", "type": "image/svg+xml"},
+            {"src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232c7a7b'/%3E%3Ctext x='256' y='350' font-size='260' text-anchor='middle' fill='white'%3E🍃%3C/text%3E%3C/svg%3E", "sizes": "512x512", "type": "image/svg+xml"}
+        ]
+    }
+    return jsonify(m)
+
+
+@app.route('/sw.js')
+def service_worker():
+    sw = '''
+const CACHE_NAME = 'diabetes-tracker-v2.2';
+const ASSETS = ['/', '/manifest.json'];
+self.addEventListener('install', e => {
+    self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+    e.waitUntil(caches.keys().then(keys =>
+        Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))
+    ));
+    e.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', e => {
+    if (e.request.method !== 'GET') return;
+    const url = new URL(e.request.url);
+    if (url.pathname.startsWith('/api/')) return;
+    e.respondWith(
+        fetch(e.request).then(res => {
+            if (res.ok && url.pathname === '/') {
+                const clone = res.clone();
+                caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+            }
+            return res;
+        }).catch(() => caches.match(e.request).then(r => r || caches.match('/')))
+    );
+});
+'''
+    return app.response_class(sw, mimetype='application/javascript')
 
 
 # ===== 通用 helper =====
@@ -399,11 +458,43 @@ def delete_custom_drug(item_id):
     return jsonify({'ok': True})
 
 
+# ========== 饮食模板 ==========
+@app.route('/api/meal-templates', methods=['GET'])
+def list_meal_templates():
+    rows, conn, _ = _db_op('SELECT * FROM meal_templates ORDER BY id DESC', fetch=True)
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/meal-templates', methods=['POST'])
+def add_meal_template():
+    data = request.json
+    name = (data.get('name') or '').strip()
+    meal = (data.get('meal') or '').strip()
+    food = (data.get('food') or '').strip()
+    if not name or not food:
+        return jsonify({'ok': False, 'error': 'name 和 food 不能为空'}), 400
+    _, conn, cur = _db_op(
+        '''INSERT INTO meal_templates (name, meal, food, calories, eating_order)
+           VALUES (?, ?, ?, ?, ?)''',
+        (name, meal, food, data.get('calories', ''), data.get('eating_order', '')))
+    new_id = cur.lastrowid
+    conn.close()
+    return jsonify({'ok': True, 'id': new_id})
+
+
+@app.route('/api/meal-templates/<int:item_id>', methods=['DELETE'])
+def delete_meal_template(item_id):
+    _, conn, _ = _db_op('DELETE FROM meal_templates WHERE id=?', (item_id,))
+    conn.close()
+    return jsonify({'ok': True})
+
+
 # ========== 数据备份与恢复 ==========
 @app.route('/api/backup', methods=['GET'])
 def backup_data():
     """导出所有数据为 JSON"""
-    tables = ['profile', 'goals', 'custom_drugs', 'diet', 'exercise',
+    tables = ['profile', 'goals', 'custom_drugs', 'meal_templates', 'diet', 'exercise',
               'glucose', 'medication', 'followup']
     backup = {}
     conn = get_db()
@@ -426,7 +517,7 @@ def restore_data():
     conn = get_db()
     try:
         # 清空所有表
-        for t in ['diet', 'exercise', 'glucose', 'medication', 'followup', 'custom_drugs']:
+        for t in ['diet', 'exercise', 'glucose', 'medication', 'followup', 'custom_drugs', 'meal_templates']:
             conn.execute(f'DELETE FROM {t}')
         # 恢复数据
         for t, rows in data.items():
@@ -453,6 +544,13 @@ def restore_data():
                     conn.execute(
                         'INSERT INTO custom_drugs (name, dose, time_period) VALUES (?, ?, ?)',
                         (r.get('name'), r.get('dose'), r.get('time_period')))
+            elif t == 'meal_templates':
+                for r in rows:
+                    conn.execute(
+                        '''INSERT INTO meal_templates (name, meal, food, calories, eating_order)
+                           VALUES (?, ?, ?, ?, ?)''',
+                        (r.get('name'), r.get('meal'), r.get('food'),
+                         r.get('calories', ''), r.get('eating_order', '')))
             elif t == 'diet':
                 for r in rows:
                     conn.execute(
