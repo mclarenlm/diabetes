@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   diabetes-tracker:
     build:
@@ -6,7 +8,7 @@ services:
     container_name: diabetes-tracker
     restart: unless-stopped
     ports:
-      - "5088:5000"
+      - "5055:5000"
     volumes:
       - ./data:/app/data
     environment:
