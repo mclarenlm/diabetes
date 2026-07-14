@@ -25,7 +25,7 @@ mkdir -p data
 docker compose up -d
 ```
 
-访问 `http://你的NAS_IP:5055`
+访问 `http://你的NAS_IP:5088`
 
 ## 📦 文件说明
 
