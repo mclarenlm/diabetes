@@ -263,9 +263,14 @@
 <header class="header">
     <div class="header-inner">
         <h1>🍃 糖尿病个性化治疗与控糖方案</h1>
-        <div class="date-display" id="currentDate"></div>
-        <button class="theme-toggle" onclick="toggleTheme()" title="切换夜间/白天模式">🌙</button>
-        <button id="logoutBtn" class="theme-toggle" style="display:none;" onclick="apiLogout()" title="退出登录">🔓</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <select id="memberSwitch" style="padding:6px 8px; border:1px solid var(--border); border-radius:8px; font-size:0.8rem; background:var(--card); color:var(--text); cursor:pointer; max-width:120px;" onchange="switchMember(this.value)">
+                <option value="1">👤 本人</option>
+            </select>
+            <div class="date-display" id="currentDate"></div>
+            <button class="theme-toggle" onclick="toggleTheme()" title="切换夜间/白天模式">🌙</button>
+            <button id="logoutBtn" class="theme-toggle" style="display:none;" onclick="apiLogout()" title="退出登录">🔓</button>
+        </div>
     </div>
 </header>
 
@@ -951,6 +956,16 @@
         </form>
     </div>
 
+    <!-- 成员管理 -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="margin:0;"><span class="icon">👥</span> 家庭成员管理</h2>
+            <button class="btn btn-sm" onclick="openMemberForm()" style="background:var(--primary); color:white;">➕ 添加成员</button>
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-light); margin-bottom:10px;">为每位家庭成员建立独立的数据档案，页头切换后数据完全隔离。本人为默认成员不可删除。</p>
+        <div id="memberList" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;"></div>
+    </div>
+
     <!-- 数据备份与恢复 -->
     <div class="card">
         <div class="backup-section">
@@ -982,6 +997,7 @@ const API = {
     goals: '/api/goals',
     customDrugs: '/api/custom-drugs',
     mealTemplates: '/api/meal-templates',
+    members: '/api/members',
     backup: '/api/backup',
     restore: '/api/restore'
 };
@@ -1596,6 +1612,76 @@ window.deleteTemplate = async function(id) {
     await apiDelete(API.mealTemplates + '/' + id);
     await loadMealTemplates();
     showToast('🗑️ 模板已删除');
+};
+
+// ===== 成员管理（Phase 2：多用户数据隔离） =====
+let members = [];
+let currentMemberId = 1;
+
+async function loadMembers() {
+    try { members = await apiGet(API.members); } catch { members = []; }
+    // 同步到 header 下拉框
+    const sel = document.getElementById('memberSwitch');
+    sel.innerHTML = members.map(m => `<option value="${m.id}">👤 ${escapeHtml(m.name)}</option>`).join('');
+    sel.value = currentMemberId;
+    renderMemberList();
+}
+
+async function switchMember(uid) {
+    uid = parseInt(uid);
+    if (uid === currentMemberId) return;
+    const r = await apiPost(API.members + '/switch', { user_id: uid });
+    if (r.ok) {
+        currentMemberId = uid;
+        showToast('✅ 已切换到：' + (members.find(m => m.id === uid) || {}).name || '成员');
+        await loadAll();
+    }
+}
+
+function renderMemberList() {
+    const container = document.getElementById('memberList');
+    if (!container) return;
+    if (members.length <= 1) {
+        container.innerHTML = '<div style="color:var(--text-light); font-size:0.82rem; padding:6px;">暂无其他成员，点右上角添加</div>';
+        return;
+    }
+    container.innerHTML = members.map(m => `
+        <div style="background:var(--primary-light); border-radius:8px; padding:8px 10px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span style="font-weight:600; font-size:0.85rem;">👤 ${escapeHtml(m.name)}</span>
+                <span style="font-size:0.72rem; color:var(--text-light); margin-left:6px;">${escapeHtml(m.role || '')}</span>
+            </div>
+            <div style="display:flex; gap:4px;">
+                ${m.id !== 1 ? `<button class="btn btn-sm" onclick="openMemberForm(${m.id})" style="padding:2px 6px;">编辑</button><button class="btn btn-sm" onclick="deleteMember(${m.id})" style="background:var(--danger); color:white; padding:2px 6px;">删</button>` : '<span style="font-size:0.7rem; color:var(--text-light);">默认</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+window.openMemberForm = function(id) {
+    const m = id ? members.find(x => x.id === id) : null;
+    const name = prompt('成员姓名：', m ? m.name : '');
+    if (!name) return;
+    const role = prompt('角色（本人/配偶/子女/父母）：', m ? m.role : '家属');
+    if (role === null) return;
+    (async () => {
+        if (m) {
+            await apiPut(API.members + '/' + m.id, { name, role });
+            showToast('✅ 成员已更新');
+        } else {
+            await apiPost(API.members, { name, role });
+            showToast('✅ 成员已添加');
+        }
+        await loadMembers();
+    })();
+};
+
+window.deleteMember = async function(id) {
+    if (!confirm('删除该成员将同时清空其所有数据（饮食/运动/血糖/用药等），确定继续？')) return;
+    await apiDelete(API.members + '/' + id);
+    await loadMembers();
+    if (currentMemberId === id) switchMember(1);
+    showToast('🗑️ 成员已删除');
 };
 
 // ===== DIET =====
@@ -2372,6 +2458,7 @@ async function loadAll() {
     await loadGoals();
     await loadCustomDrugs();
     await loadMealTemplates();
+    await loadMembers();
     await updateTodayOverview();
     await checkAuthStatus();
 }
