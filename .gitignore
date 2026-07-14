@@ -1,18 +1,33 @@
-# 数据库文件（本地数据，不上传）
+# SQLite 数据库文件
 data/
 *.db
+*.sqlite
+*.sqlite3
 
-# Python 缓存
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
 *.egg-info/
+dist/
+build/
 
-# 编辑器/系统
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+
+# 系统文件
 .DS_Store
 Thumbs.db
 
-# Docker
+# 环境变量
 .env
+.env.local

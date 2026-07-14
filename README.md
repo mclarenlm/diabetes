@@ -1,4 +1,4 @@
-# 糖尿病记录工具 (Diabetes Tracker)
+# 🩸 糖尿病记录工具 (Diabetes Tracker)
 
 一个为糖尿病患者设计的个人健康记录 Web 应用，支持在极空间 NAS 等设备上通过 Docker 部署，全家多设备访问，数据集中存储。
 
@@ -19,45 +19,52 @@
 ## 🚀 快速部署（Docker Compose）
 
 ```bash
-git clone https://github.com/mclarenlm/diabetes-tracker-nas-app.git
+# 1. 克隆仓库
+git clone https://github.com/mclarenlm/diabetes.git
 cd diabetes
-mkdir -p data
-docker compose up -d
-```
 
-访问 `http://你的NAS_IP:5088`
+# 2. 启动服务
+docker compose up -d
+
+# 3. 访问
+# 浏览器打开 http://你的NAS_IP:5055
+```
 
 ## 📦 文件说明
 
 ```
 diabetes/
-├── app.py              # Flask 后端，SQLite + REST API
-├── page.html           # 单页前端
-├── Dockerfile          # Docker 镜像构建
-├── docker-compose.yml  # 编排配置
-└── data/               # 数据库持久化目录
+├── app.py              # Flask 后端，SQLite 数据库 + REST API
+├── page.html           # 单页前端（内嵌 CSS + JS）
+├── Dockerfile          # Docker 镜像构建文件
+├── docker-compose.yml  # Docker Compose 编排配置
+└── data/               # SQLite 数据目录（Docker volume 挂载，自动创建）
+    └── diabetes.db
 ```
 
-## ⚙️ 环境变量
+## ⚙️ 配置
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `DB_PATH` | `/app/data/diabetes.db` | 数据库路径 |
-| `TZ` | `Asia/Shanghai` | 时区 |
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `DB_PATH` | `/app/data/diabetes.db` | SQLite 数据库路径 |
+| `TZ` | `Asia/Shanghai` | 时区设置 |
+
+修改 `docker-compose.yml` 中的端口映射（默认 `5055:5000`）和数据卷路径即可自定义。
 
 ## 🔧 技术栈
 
-Python 3.11 + Flask + Gunicorn / SQLite / 纯 HTML/CSS/JS / Docker
+- **后端**：Python 3.11 + Flask + Gunicorn
+- **数据库**：SQLite 3
+- **前端**：纯 HTML/CSS/JS（无框架依赖）
+- **部署**：Docker + Docker Compose
 
 ## 🔄 更新部署
 
 ```bash
-git pull && docker compose down && docker compose up -d --build
+git pull
+docker compose down
+docker compose up -d --build
 ```
-
-## ⚠️ 健康声明
-
-本工具仅用于个人健康数据记录，**不能替代专业医疗建议**。所有用药、饮食、运动方案请遵医嘱。
 
 ## 📝 License
 

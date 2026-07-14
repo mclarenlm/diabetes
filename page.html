@@ -226,6 +226,35 @@
             .quick-med-btn { padding: 8px 6px; font-size: 0.72rem; }
             .btn { font-size: 0.8rem; }
         }
+
+        /* 打印报告样式 */
+        #reportOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; overflow-y:auto; }
+        #reportOverlay.active { display:block; }
+        .report-modal { max-width:800px; margin:20px auto; background:white; border-radius:12px; padding:32px; box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+        .report-modal * { color:#2d3748 !important; }
+        .report-header { text-align:center; border-bottom:2px solid #2c7a7b; padding-bottom:16px; margin-bottom:20px; }
+        .report-header h1 { font-size:1.4rem; color:#2c7a7b !important; }
+        .report-header .report-date { font-size:0.85rem; color:#718096 !important; margin-top:4px; }
+        .report-section { margin-bottom:24px; }
+        .report-section h2 { font-size:1rem; color:#2c7a7b !important; border-left:4px solid #2c7a7b; padding-left:8px; margin-bottom:10px; }
+        .report-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:12px; }
+        .report-stat { text-align:center; background:#f7fafc; border-radius:8px; padding:12px 8px; }
+        .report-stat .val { font-size:1.3rem; font-weight:700; color:#2c7a7b !important; }
+        .report-stat .lbl { font-size:0.72rem; color:#718096 !important; }
+        .report-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+        .report-table th { background:#f7fafc; padding:8px; text-align:left; border-bottom:2px solid #e2e8f0; }
+        .report-table td { padding:8px; border-bottom:1px solid #e2e8f0; }
+        .report-footer { margin-top:24px; padding-top:16px; border-top:1px solid #e2e8f0; font-size:0.75rem; color:#a0aec0 !important; text-align:center; }
+        .report-actions { text-align:center; margin-top:20px; display:flex; gap:12px; justify-content:center; }
+        .report-note { background:#fffaf0; border-left:4px solid #dd6b20; padding:10px 14px; border-radius:6px; font-size:0.82rem; margin-top:10px; }
+        @media print {
+            body * { visibility:hidden; }
+            #reportOverlay, #reportOverlay * { visibility:visible; }
+            #reportOverlay { position:absolute; inset:0; background:white; overflow:visible; }
+            .report-modal { box-shadow:none; margin:0; max-width:100%; padding:20px; }
+            .report-actions { display:none; }
+            @page { margin: 1.5cm; }
+        }
     </style>
 </head>
 <body>
@@ -773,6 +802,22 @@
             </table>
         </div>
     </div>
+
+    <!-- 月度报告 -->
+    <div class="card">
+        <h2><span class="icon">📄</span> 月度报告</h2>
+        <p style="font-size:0.82rem; color:var(--text-light); margin-bottom:12px;">生成可打印的月度控糖报告，复诊时给医生参考</p>
+        <div class="form-row" style="margin-bottom:12px;">
+            <div class="form-group">
+                <label>报告月份</label>
+                <input type="month" id="reportMonth">
+            </div>
+            <div class="form-group" style="justify-content:flex-end;">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="generateReport()">📊 生成报告</button>
+            </div>
+        </div>
+    </div>
 </section>
 
 <!-- ============================================= -->
@@ -966,7 +1011,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        const tab = btn.dataset.tab;
+        document.getElementById('tab-' + tab).classList.add('active');
+        // 切换到血糖Tab时重绘图表（Canvas在隐藏容器中无法正常绘制）
+        if (tab === 'glucose') setTimeout(renderGlucoseChart, 50);
+        if (tab === 'followup') setTimeout(renderWeightChart, 50);
     });
 });
 
@@ -2247,6 +2296,163 @@ function insertFoodToDiet(name) {
     showToast('✅ 已填入：' + name);
 }
 
+// ===== 月度报告 =====
+function generateReport() {
+    const monthVal = document.getElementById('reportMonth').value;
+    if (!monthVal) { alert('请选择报告月份'); return; }
+    const [year, month] = monthVal.split('-');
+    const monthStr = `${year}年${parseInt(month)}月`;
+    const monthPrefix = monthVal; // YYYY-MM
+
+    // 筛选当月数据
+    const monthGlu = glucoseRecords.filter(r => r.date.startsWith(monthPrefix));
+    const monthMed = medRecords.filter(r => r.date.startsWith(monthPrefix));
+    const monthDiet = dietRecords.filter(r => r.date.startsWith(monthPrefix));
+    const monthEx = exerciseRecords.filter(r => r.date.startsWith(monthPrefix));
+    const monthFu = followupRecords.filter(r => r.date.startsWith(monthPrefix));
+
+    // 血糖统计
+    const gluVals = monthGlu.map(r => parseFloat(r.value)).filter(v => !isNaN(v));
+    const fastingVals = monthGlu.filter(r => r.type === '空腹').map(r => parseFloat(r.value)).filter(v => !isNaN(v));
+    const postVals = monthGlu.filter(r => r.type === '餐后2h').map(r => parseFloat(r.value)).filter(v => !isNaN(v));
+    const fastT = parseFloat(profileData.glucose_fasting_target) || 5.6;
+    const postT = parseFloat(profileData.glucose_post_target) || 7.8;
+
+    const avgGlu = gluVals.length > 0 ? (gluVals.reduce((a,b)=>a+b,0) / gluVals.length).toFixed(1) : '—';
+    const maxGlu = gluVals.length > 0 ? Math.max(...gluVals).toFixed(1) : '—';
+    const minGlu = gluVals.length > 0 ? Math.min(...gluVals).toFixed(1) : '—';
+    const avgFast = fastingVals.length > 0 ? (fastingVals.reduce((a,b)=>a+b,0) / fastingVals.length).toFixed(1) : '—';
+    const avgPost = postVals.length > 0 ? (postVals.reduce((a,b)=>a+b,0) / postVals.length).toFixed(1) : '—';
+
+    // 达标率
+    const fastOK = fastingVals.filter(v => v >= 4.4 && v <= fastT).length;
+    const fastRate = fastingVals.length > 0 ? Math.round(fastOK / fastingVals.length * 100) : '—';
+    const postOK = postVals.filter(v => v < postT).length;
+    const postRate = postVals.length > 0 ? Math.round(postOK / postVals.length * 100) : '—';
+
+    // HbA1c估算 (近90天平均血糖 → eAG → HbA1c)
+    const cutoff90 = new Date();
+    cutoff90.setDate(cutoff90.getDate() - 90);
+    const cutoffStr = cutoff90.toISOString().split('T')[0];
+    const recentGlu = glucoseRecords.filter(r => r.date >= cutoffStr);
+    const recentVals = recentGlu.map(r => parseFloat(r.value)).filter(v => !isNaN(v));
+    const eAG = recentVals.length > 0 ? (recentVals.reduce((a,b)=>a+b,0) / recentVals.length) : 0;
+    const estHbA1c = eAG > 0 ? ((eAG + 2.59) / 1.59).toFixed(1) : '—';
+
+    // 用药统计
+    const medDays = new Set(monthMed.map(r => r.date)).size;
+    const drugMap = {};
+    monthMed.forEach(r => {
+        if (!drugMap[r.name]) drugMap[r.name] = 0;
+        drugMap[r.name]++;
+    });
+
+    // 热量统计
+    const totalCal = monthDiet.reduce((s, r) => s + (parseFloat(r.calories) || 0), 0);
+    const avgCal = monthDiet.length > 0 ? Math.round(totalCal / new Set(monthDiet.map(r=>r.date)).size) : 0;
+
+    // 体重变化
+    const monthWeights = monthFu.filter(r => r.weight).sort((a,b) => a.date.localeCompare(b.date));
+    const weightChange = monthWeights.length >= 2
+        ? (parseFloat(monthWeights[monthWeights.length-1].weight) - parseFloat(monthWeights[0].weight)).toFixed(1)
+        : '—';
+
+    // 生成HTML
+    const drugRows = Object.entries(drugMap).map(([name, count]) =>
+        `<tr><td>${name}</td><td>${count}次</td></tr>`
+    ).join('') || '<tr><td colspan="2">无用药记录</td></tr>';
+
+    const noteText = [];
+    if (postRate !== '—' && postRate < 50) noteText.push('餐后血糖达标率偏低，建议加强饮食控制');
+    if (avgCal > 0 && avgCal < 1200) noteText.push('每日热量摄入偏低，需增加营养摄入以促进增重');
+    if (weightChange !== '—' && parseFloat(weightChange) < 0) noteText.push('本月体重下降，建议咨询营养师调整方案');
+    if (estHbA1c !== '—' && parseFloat(estHbA1c) >= 6.5) noteText.push('估算HbA1c≥6.5%，建议复诊检查');
+
+    const todayStr = new Date().toLocaleDateString('zh-CN');
+
+    document.getElementById('reportContent').innerHTML = `
+        <div class="report-header">
+            <h1>🍃 糖尿病月度控糖报告</h1>
+            <div class="report-date">${monthStr} | 生成日期：${todayStr}</div>
+        </div>
+
+        <div class="report-section">
+            <h2>📋 基本信息</h2>
+            <div class="report-stats">
+                <div class="report-stat"><div class="val">${profileData.height || '—'}</div><div class="lbl">身高(cm)</div></div>
+                <div class="report-stat"><div class="val">${profileData.weight || '—'}</div><div class="lbl">体重(kg)</div></div>
+                <div class="report-stat"><div class="val">${profileData.gender || '—'}</div><div class="lbl">性别</div></div>
+                <div class="report-stat"><div class="val">${profileData.age || '—'}</div><div class="lbl">年龄</div></div>
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h2>🩸 血糖统计</h2>
+            <div class="report-stats">
+                <div class="report-stat"><div class="val">${monthGlu.length}</div><div class="lbl">监测次数</div></div>
+                <div class="report-stat"><div class="val">${avgGlu}</div><div class="lbl">平均血糖(mmol/L)</div></div>
+                <div class="report-stat"><div class="val">${maxGlu}</div><div class="lbl">最高值</div></div>
+                <div class="report-stat"><div class="val">${minGlu}</div><div class="lbl">最低值</div></div>
+            </div>
+            <div class="report-stats">
+                <div class="report-stat"><div class="val">${avgFast}</div><div class="lbl">空腹均值(mmol/L)</div></div>
+                <div class="report-stat"><div class="val">${fastRate}${fastRate!=='—'?'%':''}</div><div class="lbl">空腹达标率</div></div>
+                <div class="report-stat"><div class="val">${avgPost}</div><div class="lbl">餐后2h均值(mmol/L)</div></div>
+                <div class="report-stat"><div class="val">${postRate}${postRate!=='—'?'%':''}</div><div class="lbl">餐后达标率</div></div>
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h2>💊 用药情况</h2>
+            <div class="report-stats">
+                <div class="report-stat"><div class="val">${medDays}</div><div class="lbl">用药天数</div></div>
+                <div class="report-stat"><div class="val">${monthMed.length}</div><div class="lbl">总次数</div></div>
+                <div class="report-stat"><div class="val">${Object.keys(drugMap).length}</div><div class="lbl">药品种类</div></div>
+                <div class="report-stat"><div class="val">${estHbA1c}</div><div class="lbl">估算HbA1c(%)</div></div>
+            </div>
+            <table class="report-table">
+                <thead><tr><th>药品名称</th><th>服用次数</th></tr></thead>
+                <tbody>${drugRows}</tbody>
+            </table>
+        </div>
+
+        <div class="report-section">
+            <h2>🍽️ 饮食与运动</h2>
+            <div class="report-stats">
+                <div class="report-stat"><div class="val">${monthDiet.length}</div><div class="lbl">饮食记录</div></div>
+                <div class="report-stat"><div class="val">${avgCal}</div><div class="lbl">日均热量(kcal)</div></div>
+                <div class="report-stat"><div class="val">${monthEx.length}</div><div class="lbl">运动次数</div></div>
+                <div class="report-stat"><div class="val">${weightChange}${weightChange!=='—'?'kg':''}</div><div class="lbl">体重变化</div></div>
+            </div>
+        </div>
+
+        ${noteText.length > 0 ? `
+        <div class="report-section">
+            <h2>⚠️ 健康提示</h2>
+            ${noteText.map(t => `<div class="report-note">• ${t}</div>`).join('')}
+        </div>
+        ` : ''}
+
+        <div class="report-footer">
+            本报告由糖尿病记录工具自动生成 | 仅供参考，不替代专业医疗建议 | 请遵医嘱
+        </div>
+
+        <div class="report-actions">
+            <button class="btn btn-primary" onclick="window.print()">🖨️ 打印 / 保存PDF</button>
+            <button class="btn" style="background:var(--text-light); color:white;" onclick="closeReport()">关闭</button>
+        </div>
+    `;
+
+    document.getElementById('reportOverlay').classList.add('active');
+}
+
+function closeReport() {
+    document.getElementById('reportOverlay').classList.remove('active');
+}
+
+// 设置报告月份默认值
+document.getElementById('reportMonth').value = today.slice(0,7);
+
 // ===== PWA Service Worker 注册 =====
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -2268,5 +2474,11 @@ if ('serviceWorker' in navigator) {
     filterGI();
 })();
 </script>
+
+<!-- 月度报告弹窗 -->
+<div id="reportOverlay">
+    <div class="report-modal" id="reportContent"></div>
+</div>
+
 </body>
 </html>
