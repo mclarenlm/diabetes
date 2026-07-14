@@ -2771,13 +2771,34 @@ function closeReport() {
 // 设置报告月份默认值
 document.getElementById('reportMonth').value = today.slice(0,7);
 
+// ===== 统一加载所有数据 =====
+async function loadAll() {
+    // 先从服务器获取当前选中的成员（修复刷新后成员丢失）
+    try {
+        const cur = await apiGet(API.members + '/current');
+        if (cur && cur.id) currentMemberId = cur.id;
+    } catch {}
+    await loadProfile();
+    await loadDiet();
+    await loadExercise();
+    await loadGlucose();
+    await loadMedication();
+    await loadFollowup();
+    await loadGoals();
+    await loadCustomDrugs();
+    await loadMealTemplates();
+    await loadMembers();
+    await updateTodayOverview();
+    await checkAuthStatus();
+}
+
 // ===== PWA Service Worker 注册 =====
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 (async function init() {
-    await loadAll();
+    try { await loadAll(); } catch (e) { console.error('loadAll error:', e); }
 
     // 设置表单默认值
     document.getElementById('medDate').value = today;
@@ -2789,7 +2810,7 @@ if ('serviceWorker' in navigator) {
     document.getElementById('fuDate').value = today;
 
     // 初始化GI列表
-    filterGI();
+    try { filterGI(); } catch (e) { console.error('filterGI error:', e); }
 })();
 </script>
 
