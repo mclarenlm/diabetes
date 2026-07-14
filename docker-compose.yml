@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  diabetes-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diabetes-tracker
+    restart: unless-stopped
+    ports:
+      - "5055:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/diabetes.db
+      - TZ=Asia/Shanghai

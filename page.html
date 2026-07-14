@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>糖尿病个性化治疗与控糖方案 - 记录工具</title>
+    <style>
+        :root {
+            --primary: #2c7a7b;
+            --primary-light: #e6f4f4;
+            --danger: #e53e3e;
+            --warning: #dd6b20;
+            --success: #38a169;
+            --bg: #f7fafc;
+            --card-bg: #ffffff;
+            --text: #2d3748;
+            --text-light: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+            --radius: 12px;
+            --table-hover: #f7fafc;
+            --input-bg: #fafafa;
+            --badge-high-bg: #fff5f5;
+            --badge-normal-bg: #f0fff4;
+            --badge-warn-bg: #fffaf0;
+            --ref-bg: #f7fafc;
+            --ref-hover: #edf2f7;
+            --goal-bar-bg: #edf2f7;
+            --header-bg: linear-gradient(135deg, #1a5c5d 0%, #2c7a7b 100%);
+            --th-bg: #f7fafc;
+        }
+
+        body.dark {
+            --primary: #4fd1c5;
+            --primary-light: #1a3c3d;
+            --danger: #fc8181;
+            --warning: #f6ad55;
+            --success: #68d391;
+            --bg: #0f1419;
+            --card-bg: #1e252e;
+            --text: #e8edf2;
+            --text-light: #8b9eb0;
+            --border: #313d4a;
+            --shadow: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.4);
+            --table-hover: #252e3a;
+            --input-bg: #252e3a;
+            --badge-high-bg: #3d1f1f;
+            --badge-normal-bg: #1a3325;
+            --badge-warn-bg: #3d2f1a;
+            --ref-bg: #252e3a;
+            --ref-hover: #313d4a;
+            --goal-bar-bg: #313d4a;
+            --header-bg: linear-gradient(135deg, #0d2137 0%, #13302e 100%);
+            --th-bg: #252e3a;
+        }
+        body.dark .header { border-bottom: 1px solid rgba(255,255,255,0.06); }
+        body.dark .card { border-color: rgba(255,255,255,0.04); }
+        body.dark .stat-card { border-color: rgba(255,255,255,0.06); }
+        body.dark .stat-card.warning { border-left-color: var(--warning); }
+        body.dark .stat-card.danger { border-left-color: var(--danger); }
+        body.dark .stat-card.success { border-left-color: var(--success); }
+        body.dark .form-group input,
+        body.dark .form-group select,
+        body.dark .form-group textarea {
+            color: var(--text);
+            border-color: var(--border);
+        }
+        body.dark .form-group input:focus,
+        body.dark .form-group select:focus,
+        body.dark .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 209, 197, 0.15);
+            background: #2a3540;
+        }
+        body.dark .btn-primary { box-shadow: 0 2px 8px rgba(79, 209, 197, 0.2); }
+        body.dark .btn-primary:hover { box-shadow: 0 4px 14px rgba(79, 209, 197, 0.3); }
+        body.dark .btn-danger { background: #3d1f1f; border-color: #5a2a2a; }
+        body.dark .btn-danger:hover { background: #5a2a2a; }
+        body.dark .tabs { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.04); }
+        body.dark .tab-btn:hover { color: var(--primary); background: rgba(79, 209, 197, 0.1); }
+        body.dark .empty-state { color: var(--text-light); }
+        body.dark .header .date-display { background: rgba(255,255,255,0.08); }
+        body.dark .theme-toggle { background: rgba(255,255,255,0.08); }
+        body.dark .theme-toggle:hover { background: rgba(255,255,255,0.18); }
+        body.dark .goal-bar-wrap { background: var(--goal-bar-bg); }
+        body.dark .quick-med-btn { border: 1px solid rgba(255,255,255,0.08); }
+        body.dark .quick-med-btn:hover { filter: brightness(1.15); }
+        body.dark .custom-med-btn { border: 1px solid rgba(255,255,255,0.1); }
+        /* 快捷按钮区绿色卡片 */
+        body.dark .quick-btn-card { background: #162b2b !important; border-color: #2a4a4a !important; }
+        body.dark .quick-btn-card .custom-form-bg { background: #252e3a !important; }
+        /* 用药汇总黄色卡片 */
+        body.dark .summary-card { background: #1e2419 !important; border-color: #3d3418 !important; }
+        body.dark .summary-stat-box { background: #252e3a !important; }
+        /* 风险提示卡片 */
+        body.dark .risk-card-danger { background: #2d1a1a !important; }
+        body.dark .risk-card-success { background: #162b1f !important; }
+        /* 运动安全清单 */
+        body.dark .safety-card { background: #162b1f !important; border-color: #2a4a35 !important; }
+        /* 就诊指征 */
+        body.dark .alert-card { background: #2d1a1a !important; border-color: #4a2a2a !important; }
+        /* 自定义表单内部 */
+        body.dark #customForm { background: #252e3a !important; }
+        body.dark table td { border-color: var(--border); }
+        body.dark table th { border-color: var(--border); color: var(--text-light); }
+        body.dark .ref-section { border-color: var(--border); }
+        body.dark .ref-body { background: var(--card-bg); }
+        body.dark .card h2 { border-bottom-color: rgba(79,209,197,0.15); }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            background: var(--header-bg);
+            color: white;
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        .header .date-display {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+        .theme-toggle {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        /* ===== Layout ===== */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+
+        /* ===== Tabs ===== */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 4px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 16px;
+            border: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { color: var(--primary); background: var(--primary-light); }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-btn.drag-over { outline: 2px dashed var(--primary); outline-offset: -2px; transform: scale(1.05); }
+        .tab-btn.dragging { opacity: 0.4; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== Cards ===== */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        .card h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .icon { font-size: 1.3rem; }
+        .card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin: 16px 0 10px;
+        }
+
+        /* ===== Stats Grid ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+        }
+        .stat-card.warning { border-left-color: var(--warning); }
+        .stat-card.danger { border-left-color: var(--danger); }
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 4px 0;
+        }
+        .stat-sub {
+            font-size: 0.78rem;
+            color: var(--text-light);
+        }
+
+        /* ===== Forms ===== */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            background: var(--input-bg);
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: #236b6c; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-danger {
+            background: var(--badge-high-bg);
+            color: var(--danger);
+            border: 1px solid #fed7d7;
+        }
+        .btn-danger:hover { background: #fed7d7; }
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 0.78rem;
+        }
+        .quick-med-btn {
+            text-align: center;
+            line-height: 1.4;
+            padding: 14px 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .quick-med-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+            border-color: rgba(255,255,255,0.3);
+        }
+        .quick-med-btn:active {
+            transform: scale(0.96);
+            transition: transform 0.08s;
+        }
+        .quick-med-btn small {
+            display: block;
+            font-weight: 400;
+            opacity: 0.88;
+            font-size: 0.75rem;
+        }
+
+        /* ===== Tables ===== */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        table th {
+            background: var(--th-bg);
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        table tbody tr:hover { background: var(--table-hover); }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-high { background: var(--badge-high-bg); color: var(--danger); }
+        .badge-normal { background: var(--badge-normal-bg); color: var(--success); }
+        .badge-warn { background: var(--badge-warn-bg); color: var(--warning); }
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-light);
+        }
+
+        /* ===== Goals ===== */
+        .goal-bar-wrap {
+            background: var(--goal-bar-bg);
+            border-radius: 8px;
+            height: 10px;
+            margin: 8px 0 4px;
+            overflow: hidden;
+        }
+        .goal-bar {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.5s ease;
+            background: linear-gradient(90deg, var(--primary), #38b2ac);
+        }
+        .goal-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        /* ===== Reference card (collapsible) ===== */
+        .ref-section {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .ref-header {
+            background: var(--ref-bg);
+            padding: 12px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .ref-header:hover { background: var(--ref-hover); }
+        .ref-body { padding: 16px; display: none; }
+        .ref-body.open { display: block; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .container { padding: 16px 12px 60px; }
+            .card { padding: 16px; }
+            .card h2 { font-size: 1.05rem; }
+            .card h3 { font-size: 0.92rem; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 12px 14px; }
+            .stat-value { font-size: 1.3rem; }
+            .stat-label { font-size: 0.72rem; }
+            .stat-sub { font-size: 0.7rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .form-group input,
+            .form-group select,
+            .form-group textarea { font-size: 16px; padding: 10px; }
+            .btn { padding: 10px 16px; font-size: 0.85rem; min-height: 44px; }
+            .btn-sm { min-height: 32px; padding: 5px 10px; }
+            .tabs { gap: 0; padding: 2px; overflow-x: auto; }
+            .tab-btn { padding: 10px 6px; font-size: 0.72rem; min-width: 56px; flex-shrink: 0; }
+        @media (max-width: 768px) {
+            .tab-btn .icon-text { display: none; }
+            .tab-btn .emoji { font-size: 1.2rem; display: inline-block; }
+        }
+            .header { padding: 14px 0; }
+            .header h1 { font-size: 1rem; flex: 1 1 100%; }
+            .header-inner { padding: 0 12px; gap: 8px; flex-wrap: wrap; }
+            .quick-btn-card .grid-2-mobile { grid-template-columns: 1fr 1fr !important; }
+            .quick-med-btn { padding: 10px 8px; font-size: 0.78rem; }
+            .quick-med-btn small { font-size: 0.68rem; }
+            #customForm .form-row { grid-template-columns: 1fr 1fr; }
+            .summary-stat-box { padding: 10px 8px; }
+            .summary-stat-box .stat-value-text { font-size: 1.2rem; }
+            table { font-size: 0.75rem; }
+            table th, table td { padding: 8px 6px; }
+            /* 手机端隐藏次要列 */
+            #medTable th:nth-child(2), #medTable td:nth-child(2),
+            #glucoseTable th:nth-child(6), #glucoseTable td:nth-child(6),
+            #exerciseTable th:nth-child(7), #exerciseTable td:nth-child(7),
+            #exerciseTable th:nth-child(8), #exerciseTable td:nth-child(8),
+            #dietTable th:nth-child(6), #dietTable td:nth-child(6),
+            #dietTable th:nth-child(7), #dietTable td:nth-child(7) { display: none; }
+        }
+        @media (max-width: 400px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+            .header h1 { font-size: 0.9rem; }
+            .card { padding: 12px; }
+            .tab-btn { font-size: 0.68rem; padding: 8px 4px; min-width: 48px; }
+            .tab-btn .emoji-only { font-size: 1rem; }
+            .quick-med-btn { padding: 8px 6px; font-size: 0.72rem; }
+            .btn { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+    <div class="header-inner">
+        <h1>🍃 糖尿病个性化治疗与控糖方案</h1>
+        <div class="date-display" id="currentDate"></div>
+        <button class="theme-toggle" onclick="toggleTheme()" title="切换夜间/白天模式">🌙</button>
+    </div>
+</header>
+
+<div class="container">
+
+<!-- ===== TABS ===== -->
+<nav class="tabs" id="tabNav">
+    <button class="tab-btn active" data-tab="medication" draggable="true"><span class="emoji">💊</span><span class="icon-text">用药追踪</span></button>
+    <button class="tab-btn" data-tab="overview" draggable="true"><span class="emoji">📋</span><span class="icon-text">方案概览</span></button>
+    <button class="tab-btn" data-tab="diet" draggable="true"><span class="emoji">🍽️</span><span class="icon-text">饮食记录</span></button>
+    <button class="tab-btn" data-tab="exercise" draggable="true"><span class="emoji">🏋️</span><span class="icon-text">运动记录</span></button>
+    <button class="tab-btn" data-tab="glucose" draggable="true"><span class="emoji">🩸</span><span class="icon-text">血糖监测</span></button>
+    <button class="tab-btn" data-tab="goals" draggable="true"><span class="emoji">🎯</span><span class="icon-text">目标与随访</span></button>
+</nav>
+
+<!-- ============================================= -->
+<!-- TAB 1: 用药追踪（首位） -->
+<!-- ============================================= -->
+<section class="tab-content active" id="tab-medication">
+    <div class="card quick-btn-card" style="background:#f0fff4; border-color:#c6f6d5;">
+        <h2><span class="icon">⚡</span> 快捷用药按钮</h2>
+        <p style="font-size:0.85rem; color:var(--text-light); margin-bottom:12px;">点击下方按钮，自动添加对应药物的服用记录（日期和时间自动填充当前时刻）</p>
+        <div class="grid-2-mobile" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px;">
+            <button class="btn btn-primary quick-med-btn" data-drug="氢溴酸替格列汀" data-dose="20mg" data-time="晨起空腹" style="background:#2b6cb0;">
+                💊 氢溴酸替格列汀<br><small>20mg · 晨起空腹</small>
+            </button>
+            <button class="btn btn-primary quick-med-btn" data-drug="甲钴胺" data-dose="0.5mg" data-time="早餐随餐" style="background:#6b46c1;">
+                💊 甲钴胺<br><small>0.5mg · 早餐随餐</small>
+            </button>
+            <button class="btn btn-primary quick-med-btn" data-drug="硫辛酸" data-dose="0.1g" data-time="早餐随餐" style="background:#c05621;">
+                💊 硫辛酸<br><small>0.1g · 早餐随餐</small>
+            </button>
+            <button class="btn btn-primary quick-med-btn" data-drug="依帕司他" data-dose="50mg" data-time="早餐随餐" style="background:#285e61;">
+                💊 依帕司他<br><small>50mg · 早餐随餐</small>
+            </button>
+        </div>
+        <div id="quickMedToast" style="margin-top:10px; font-size:0.85rem; color:var(--success); display:none;"></div>
+
+        <div style="margin-top:18px; padding-top:14px; border-top:1px dashed #c6f6d5;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <strong style="font-size:0.9rem;">🆕 自定义快捷按钮</strong>
+                <button type="button" class="btn btn-sm" onclick="toggleCustomForm()" style="background:#38a169; color:white;">+ 添加</button>
+            </div>
+            <div id="customForm" class="custom-form-bg" style="display:none; background:white; padding:12px; border-radius:8px; margin-bottom:10px;">
+                <div class="form-row" style="grid-template-columns: 2fr 1fr 1fr auto;">
+                    <div class="form-group">
+                        <label>药名</label>
+                        <input type="text" id="customDrugName" placeholder="如 维生素D">
+                    </div>
+                    <div class="form-group">
+                        <label>剂量</label>
+                        <input type="text" id="customDose" placeholder="如 400IU">
+                    </div>
+                    <div class="form-group">
+                        <label>时段</label>
+                        <select id="customTime">
+                            <option value="晨起空腹">晨起空腹</option>
+                            <option value="早餐随餐">早餐随餐</option>
+                            <option value="午餐随餐">午餐随餐</option>
+                            <option value="晚餐随餐">晚餐随餐</option>
+                            <option value="睡前">睡前</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="addCustomDrug()" style="background:#38a169;">保存</button>
+                    </div>
+                </div>
+            </div>
+            <div id="customButtonsList" class="grid-2-mobile" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:8px;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📝</span> 添加用药记录</h2>
+        <form id="medForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="medDate" required>
+                </div>
+                <div class="form-group">
+                    <label>具体时间</label>
+                    <input type="text" id="medTimeDetail" placeholder="HH:MM 如 08:30" pattern="[0-9]{2}:[0-9]{2}" required>
+                </div>
+                <div class="form-group">
+                    <label>药物名称</label>
+                    <select id="medName" required>
+                        <option value="">请选择</option>
+                        <option value="氢溴酸替格列汀">氢溴酸替格列汀</option>
+                        <option value="甲钴胺">甲钴胺</option>
+                        <option value="硫辛酸">硫辛酸</option>
+                        <option value="依帕司他">依帕司他</option>
+                        <option value="阿卡波糖">阿卡波糖</option>
+                        <option value="伏格列波糖">伏格列波糖</option>
+                        <option value="西格列汀">西格列汀</option>
+                        <option value="瑞格列奈">瑞格列奈</option>
+                        <option value="其他">其他（请备注）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>剂量</label>
+                    <input type="text" id="medDose" placeholder="如 20mg" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>服用时段</label>
+                    <select id="medTime" required>
+                        <option value="晨起空腹">晨起空腹</option>
+                        <option value="早餐随餐">早餐随餐</option>
+                        <option value="午餐随餐">午餐随餐</option>
+                        <option value="晚餐随餐">晚餐随餐</option>
+                        <option value="睡前">睡前</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>不良反应</label>
+                    <select id="medSideEffect">
+                        <option value="无">无</option>
+                        <option value="腹胀">腹胀</option>
+                        <option value="排气增多">排气增多</option>
+                        <option value="腹泻">腹泻</option>
+                        <option value="恶心">恶心</option>
+                        <option value="食欲下降">食欲下降</option>
+                        <option value="头晕">头晕</option>
+                        <option value="皮疹">皮疹</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <input type="text" id="medNote" placeholder="其他说明">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px;">➕ 添加记录</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📊</span> 用药记录列表
+            <button class="btn btn-sm" onclick="exportMedCSV()" style="margin-left:auto; background:#ed8936; color:white; font-size:0.78rem;">📥 导出CSV</button>
+        </h2>
+        <div class="table-wrap">
+            <table id="medTable">
+                <thead>
+                    <tr><th>日期</th><th>具体时间</th><th>药物</th><th>剂量</th><th>时段</th><th>不良反应</th><th>备注</th><th>操作</th></tr>
+                </thead>
+                <tbody id="medTbody">
+                    <tr><td colspan="8" class="empty-state">暂无记录，请点击上方快捷按钮或手动添加</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card summary-card" style="background:#fffbeb; border-color:#fbd38d;">
+        <h2><span class="icon">📈</span> 用药汇总</h2>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:14px;">
+            <div class="summary-stat-box" style="background:white; padding:12px; border-radius:8px; text-align:center;">
+                <div style="font-size:0.78rem;color:var(--text-light);">累计用药天数</div>
+                <div style="font-size:1.6rem;font-weight:700;color:var(--primary);" id="summaryDays">0</div>
+            </div>
+            <div class="summary-stat-box" style="background:white; padding:12px; border-radius:8px; text-align:center;">
+                <div style="font-size:0.78rem;color:var(--text-light);">用药总次数</div>
+                <div style="font-size:1.6rem;font-weight:700;color:var(--primary);" id="summaryTotal">0</div>
+            </div>
+            <div class="summary-stat-box" style="background:white; padding:12px; border-radius:8px; text-align:center;">
+                <div style="font-size:0.78rem;color:var(--text-light);">使用药品种类</div>
+                <div style="font-size:1.6rem;font-weight:700;color:var(--primary);" id="summaryKinds">0</div>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table id="summaryTable">
+                <thead><tr><th>药物名称</th><th>服用天数</th><th>服用次数</th><th>总剂量</th></tr></thead>
+                <tbody id="summaryTbody">
+                    <tr><td colspan="4" class="empty-state">暂无用药记录</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">💊</span> 用药方案参考</h2>
+        <table>
+            <thead><tr><th>阶段</th><th>方案</th><th>药物</th><th>剂量</th><th>说明</th></tr></thead>
+            <tbody>
+                <tr><td><strong>当前用药</strong></td><td>DPP-4 抑制剂</td><td>氢溴酸替格列汀</td><td>20 mg qd</td><td>晨起空腹服用；体重中性，低血糖风险极低</td></tr>
+                <tr><td><strong>当前用药</strong></td><td>神经营养/修复</td><td>甲钴胺</td><td>0.5 mg qd</td><td>随餐服用；辅助改善神经功能</td></tr>
+                <tr><td><strong>当前用药</strong></td><td>抗氧化剂</td><td>硫辛酸</td><td>0.1 g qd</td><td>随餐服用；改善胰岛素敏感性、抗氧化</td></tr>
+                <tr><td><strong>当前用药</strong></td><td>醛糖还原酶抑制剂</td><td>依帕司他</td><td>50 mg tid</td><td>随餐服用；延缓糖尿病神经病变进展</td></tr>
+                <tr><td><strong>备选方案</strong></td><td>α-葡萄糖苷酶抑制剂</td><td>阿卡波糖</td><td>25 mg tid</td><td>若餐后血糖控制不佳时加用；随第一口主食嚼服</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 2: 方案概览 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-overview">
+
+    <div class="stats-grid">
+        <div class="stat-card danger">
+            <div class="stat-label">当前 BMI</div>
+            <div class="stat-value">16.65</div>
+            <div class="stat-sub">体重过轻（正常 18.5–24.9）</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-label">体重</div>
+            <div class="stat-value">51 <span style="font-size:1rem;">kg</span></div>
+            <div class="stat-sub">目标 ≥ 56.7 kg（BMI ≥ 18.5）</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">空腹血糖</div>
+            <div class="stat-value">5.3</div>
+            <div class="stat-sub">mmol/L · 正常范围</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-label">餐后2h血糖</div>
+            <div class="stat-value">8–9</div>
+            <div class="stat-sub">mmol/L · 目标 < 7.8</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">⚠️</span> 风险与优先目标</h2>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+            <div class="risk-card-danger" style="background:#fff5f5; padding:14px; border-radius:8px; border-left:3px solid var(--danger);">
+                <strong style="color:var(--danger);">关键风险</strong>
+                <ul style="margin:8px 0 0 18px; font-size:0.9rem; color:#555;">
+                    <li>营养不良风险（BMI 16.65）</li>
+                    <li>免疫功能下降、肌肉量不足</li>
+                    <li>餐后高血糖 → 糖尿病进展风险</li>
+                    <li>心血管并发症远期风险</li>
+                </ul>
+            </div>
+            <div class="risk-card-success" style="background:#f0fff4; padding:14px; border-radius:8px; border-left:3px solid var(--success);">
+                <strong style="color:var(--success);">优先目标</strong>
+                <ul style="margin:8px 0 0 18px; font-size:0.9rem; color:#555;">
+                    <li>科学增重至 BMI ≥ 18.5</li>
+                    <li>餐后2h血糖 &lt; 7.8 mmol/L</li>
+                    <li>增强肌肉质量（抗阻训练）</li>
+                    <li>阻止糖尿病前期进展</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📐</span> 每日营养目标</h2>
+        <table>
+            <thead><tr><th>营养素</th><th>每日摄入量</th><th>供能比</th><th>主要来源</th></tr></thead>
+            <tbody>
+                <tr><td><strong>总热量</strong></td><td>2200–2400 kcal</td><td>100%</td><td>—</td></tr>
+                <tr><td><strong>碳水化合物</strong></td><td>275–300 g</td><td>50%</td><td>全谷物、薯类、低GI水果</td></tr>
+                <tr><td><strong>蛋白质</strong></td><td>90–110 g</td><td>18%–20%</td><td>瘦肉、蛋、奶、豆制品、鱼</td></tr>
+                <tr><td><strong>脂肪</strong></td><td>70–80 g</td><td>30%–32%</td><td>坚果、橄榄油、深海鱼</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">🍽️</span> 参考食谱（约 2300 kcal）</h2>
+        <table>
+            <thead><tr><th>餐次</th><th>时间</th><th>内容</th><th>热量</th></tr></thead>
+            <tbody>
+                <tr><td><strong>早餐</strong></td><td>7:00–8:00</td><td>全麦面包60g + 牛奶250ml + 水煮蛋2个 + 凉拌黄瓜100g + 蓝莓50g</td><td>~550 kcal</td></tr>
+                <tr><td><strong>上午加餐</strong></td><td>10:00</td><td>原味坚果15g + 无糖酸奶100g</td><td>~200 kcal</td></tr>
+                <tr><td><strong>午餐</strong></td><td>12:00–13:00</td><td>糙米饭130g + 清蒸鲈鱼150g + 西兰花200g + 番茄豆腐汤 + 橄榄油10g</td><td>~700 kcal</td></tr>
+                <tr><td><strong>下午加餐</strong></td><td>15:30–16:00</td><td>全麦饼干30g + 苹果150g</td><td>~200 kcal</td></tr>
+                <tr><td><strong>晚餐</strong></td><td>18:00–19:00</td><td>红薯150g + 鸡胸肉120g + 蒜蓉菠菜200g + 凉拌木耳50g + 亚麻籽油8g</td><td>~550 kcal</td></tr>
+                <tr><td><strong>睡前加餐</strong></td><td>21:30</td><td>温牛奶200ml + 全麦馒头片30g</td><td>~150 kcal</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 3: 饮食记录 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-diet">
+    <div class="card">
+        <h2><span class="icon">📝</span> 添加饮食记录</h2>
+        <form id="dietForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="dietDate" required>
+                </div>
+                <div class="form-group">
+                    <label>餐次</label>
+                    <select id="dietMeal" required>
+                        <option value="">请选择</option>
+                        <option value="早餐">早餐 (7:00–8:00)</option>
+                        <option value="上午加餐">上午加餐 (10:00)</option>
+                        <option value="午餐">午餐 (12:00–13:00)</option>
+                        <option value="下午加餐">下午加餐 (15:30–16:00)</option>
+                        <option value="晚餐">晚餐 (18:00–19:00)</option>
+                        <option value="睡前加餐">睡前加餐 (21:30)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>估算热量 (kcal)</label>
+                    <input type="number" id="dietCalories" placeholder="如 550" min="0">
+                </div>
+                <div class="form-group">
+                    <label>餐后2h血糖 (mmol/L)</label>
+                    <input type="number" id="dietGlucose" placeholder="如 7.5" step="0.1" min="0" max="20">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="grid-column: 1/-1;">
+                    <label>具体食物（按推荐食谱记录实际摄入）</label>
+                    <textarea id="dietFood" placeholder="例：糙米饭130g + 清蒸鲈鱼150g + 西兰花200g（吃完了/剩1/3）" required></textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>进食顺序</label>
+                    <select id="dietOrder">
+                        <option value="">未记录</option>
+                        <option value="先菜后肉后主食">✅ 先菜→后肉→后主食</option>
+                        <option value="混合进食">⚠️ 混合进食</option>
+                        <option value="先主食">❌ 先主食</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <input type="text" id="dietNote" placeholder="如：腹胀、食欲好、吃不完等">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px;">➕ 添加记录</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📊</span> 饮食记录列表</h2>
+        <div class="table-wrap">
+            <table id="dietTable">
+                <thead>
+                    <tr><th>日期</th><th>餐次</th><th>食物</th><th>热量</th><th>餐后血糖</th><th>进食顺序</th><th>备注</th><th>操作</th></tr>
+                </thead>
+                <tbody id="dietTbody">
+                    <tr><td colspan="8" class="empty-state">暂无记录，请添加第一条饮食记录</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:12px; text-align:right; font-weight:600; color:var(--primary);">
+            今日总热量：<span id="dietTotalCal">0</span> kcal
+        </div>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 4: 运动记录 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-exercise">
+    <div class="card quick-btn-card" style="background:#f0fff4; border-color:#c6f6d5;">
+        <h2><span class="icon">🛡️</span> 运动前安全检查清单</h2>
+        <ul style="margin-left:20px; font-size:0.9rem; line-height:2;">
+            <li>✅ 运动前必须测血糖（目标 > 5.6 mmol/L）</li>
+            <li>✅ 血糖 &lt; 5.6 时：先进食 15–20g 碳水再运动</li>
+            <li>✅ 随身携带"急救糖包"：葡萄糖片 3–4 颗 / 方糖 2 块</li>
+            <li>✅ 超过 30 分钟运动：每 30 分钟测一次血糖</li>
+            <li>✅ 心慌、手抖、出汗、头晕 → 立即停止并补糖</li>
+            <li>✅ 运动后 30 分钟内补充蛋白质 + 碳水</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📝</span> 添加运动记录</h2>
+        <form id="exerciseForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="exDate" required>
+                </div>
+                <div class="form-group">
+                    <label>运动类型</label>
+                    <select id="exType" required>
+                        <option value="">请选择</option>
+                        <option value="抗阻训练">抗阻训练（哑铃/弹力带/自重）</option>
+                        <option value="有氧训练">有氧训练（快走/慢骑/椭圆机）</option>
+                        <option value="柔韧训练">柔韧训练（瑜伽/拉伸）</option>
+                        <option value="混合训练">混合训练</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>时长（分钟）</label>
+                    <input type="number" id="exDuration" placeholder="如 30" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>强度</label>
+                    <select id="exIntensity">
+                        <option value="低">低（轻松、可聊天）</option>
+                        <option value="中" selected>中（微喘、心率100-120）</option>
+                        <option value="高">高（大汗、难以交谈）</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>运动前血糖 (mmol/L)</label>
+                    <input type="number" id="exBeforeGlucose" placeholder="如 6.2" step="0.1" min="0" max="20">
+                </div>
+                <div class="form-group">
+                    <label>运动后血糖 (mmol/L)</label>
+                    <input type="number" id="exAfterGlucose" placeholder="如 5.8" step="0.1" min="0" max="20">
+                </div>
+                <div class="form-group">
+                    <label>是否携带急救糖包</label>
+                    <select id="exSugar">
+                        <option value="是">✅ 是</option>
+                        <option value="否">❌ 否（请务必携带！）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>有无不适</label>
+                    <select id="exSymptom">
+                        <option value="无">无</option>
+                        <option value="心慌/手抖">心慌/手抖</option>
+                        <option value="头晕">头晕</option>
+                        <option value="乏力">乏力</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="grid-column: 1/-1;">
+                    <label>备注</label>
+                    <input type="text" id="exNote" placeholder="如：深蹲3组×15次、卧推3组×12次等">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px;">➕ 添加记录</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📊</span> 运动记录列表</h2>
+        <div class="table-wrap">
+            <table id="exerciseTable">
+                <thead>
+                    <tr><th>日期</th><th>类型</th><th>时长</th><th>强度</th><th>运动前血糖</th><th>运动后血糖</th><th>急救糖包</th><th>不适</th><th>操作</th></tr>
+                </thead>
+                <tbody id="exerciseTbody">
+                    <tr><td colspan="9" class="empty-state">暂无记录，请添加第一条运动记录</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 5: 血糖监测 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-glucose">
+    <div class="card">
+        <h2><span class="icon">📝</span> 添加血糖记录</h2>
+        <form id="glucoseForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="gluDate" required>
+                </div>
+                <div class="form-group">
+                    <label>时间</label>
+                    <input type="time" id="gluTime" required>
+                </div>
+                <div class="form-group">
+                    <label>测量类型</label>
+                    <select id="gluType" required>
+                        <option value="">请选择</option>
+                        <option value="空腹">空腹（目标 4.4–5.6）</option>
+                        <option value="餐后1h">餐后 1 小时（目标 &lt; 10.0）</option>
+                        <option value="餐后2h">餐后 2 小时（目标 &lt; 7.8）⭐</option>
+                        <option value="睡前">睡前（目标 5.6–7.0）</option>
+                        <option value="运动前">运动前（目标 > 5.6）</option>
+                        <option value="运动后">运动后</option>
+                        <option value="随机">随机</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>血糖值 (mmol/L)</label>
+                    <input type="number" id="gluValue" placeholder="如 7.5" step="0.1" min="0" max="30" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>备注</label>
+                    <input type="text" id="gluNote" placeholder="如：午餐后、运动后等">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px;">➕ 添加记录</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📊</span> 血糖记录列表</h2>
+        <div class="table-wrap">
+            <table id="glucoseTable">
+                <thead>
+                    <tr><th>日期</th><th>时间</th><th>类型</th><th>血糖值</th><th>状态</th><th>备注</th><th>操作</th></tr>
+                </thead>
+                <tbody id="glucoseTbody">
+                    <tr><td colspan="7" class="empty-state">暂无记录，请添加第一条血糖记录</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📋</span> 血糖监测频率建议</h2>
+        <table>
+            <thead><tr><th>时段</th><th>建议频率</th><th>目标值</th></tr></thead>
+            <tbody>
+                <tr><td>空腹血糖</td><td>每周 2–3 次</td><td>4.4–5.6 mmol/L</td></tr>
+                <tr><td>餐后 1 小时血糖</td><td>每周 1–2 次（重点日）</td><td>&lt; 10.0 mmol/L</td></tr>
+                <tr><td><strong>餐后 2 小时血糖</strong></td><td><strong>每周 3–4 次（重点）</strong></td><td><strong>&lt; 7.8 mmol/L</strong></td></tr>
+                <tr><td>睡前血糖</td><td>每周 1 次</td><td>5.6–7.0 mmol/L</td></tr>
+                <tr><td>运动前后血糖</td><td>每次运动前后必测</td><td>运动前 &gt; 5.6 mmol/L</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 6: 目标与随访 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-goals">
+    <div class="card">
+        <h2><span class="icon">🎯</span> 目标进度</h2>
+
+        <h3>体重目标</h3>
+        <div class="goal-label"><span>当前 51 kg</span><span>短期目标 52 kg（1个月）</span><span>长期目标 60–65 kg</span></div>
+        <div class="goal-bar-wrap"><div class="goal-bar" id="weightBar" style="width:0%;"></div></div>
+
+        <h3 style="margin-top:16px;">餐后2h血糖目标</h3>
+        <div class="goal-label"><span>当前 8–9 mmol/L</span><span>目标 &lt; 7.8 mmol/L</span></div>
+        <div class="goal-bar-wrap"><div class="goal-bar" id="glucoseBar" style="width:0%; background:linear-gradient(90deg, var(--warning), var(--success));"></div></div>
+
+        <div style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form-group">
+                <label>更新当前体重 (kg)</label>
+                <input type="number" id="goalWeight" placeholder="如 51.5" step="0.1" min="30" max="100">
+            </div>
+            <div class="form-group">
+                <label>更新最近餐后2h血糖 (mmol/L)</label>
+                <input type="number" id="goalGlucose" placeholder="如 7.5" step="0.1" min="0" max="20">
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="updateGoals()" style="margin-top:8px;">🔄 更新目标进度</button>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📅</span> 随访计划</h2>
+        <table>
+            <thead><tr><th>时间节点</th><th>体重目标</th><th>餐后2h血糖</th><th>检查项目</th></tr></thead>
+            <tbody>
+                <tr><td><strong>4 周（首诊复诊）</strong></td><td>51.5–52 kg</td><td>&lt; 7.8</td><td>空腹+餐后2h血糖、肝肾功能</td></tr>
+                <tr><td><strong>3 个月</strong></td><td>53–54 kg</td><td>&lt; 7.5</td><td>HbA1c、空腹胰岛素、血脂、肝肾功能、25-OH维生素D、营养评估</td></tr>
+                <tr><td><strong>6 个月</strong></td><td>≥ 56 kg (BMI≥18.3)</td><td>稳定 &lt; 7.8</td><td>全面代谢评估 + 体成分分析（肌肉量）</td></tr>
+                <tr><td><strong>12 个月</strong></td><td>60–65 kg（健康体重）</td><td>持续达标</td><td>全面代谢指标正常化确认</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card alert-card" style="background:#fff5f5; border-color:#fed7d7;">
+        <h2><span class="icon">🚨</span> 需立即就诊的情况</h2>
+        <ul style="margin-left:20px; line-height:2; font-size:0.9rem;">
+            <li>空腹血糖 ≥ 7.0 mmol/L</li>
+            <li>餐后血糖 ≥ 11.1 mmol/L</li>
+            <li>出现"三多一少"症状（多饮、多食、多尿、体重下降）</li>
+            <li>反复发生低血糖（&lt; 3.9 mmol/L）</li>
+            <li>突发体重快速下降（1周内下降 &gt; 1 kg）</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2><span class="icon">📝</span> 随访记录</h2>
+        <form id="followupForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="fuDate" required>
+                </div>
+                <div class="form-group">
+                    <label>体重 (kg)</label>
+                    <input type="number" id="fuWeight" step="0.1" min="30" max="100">
+                </div>
+                <div class="form-group">
+                    <label>腰围 (cm)</label>
+                    <input type="number" id="fuWaist" step="0.1" min="50" max="150">
+                </div>
+                <div class="form-group">
+                    <label>HbA1c (%)</label>
+                    <input type="number" id="fuHbA1c" step="0.1" min="3" max="15" placeholder="如有检测">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="grid-column: 1/-1;">
+                    <label>医生建议 / 备注</label>
+                    <textarea id="fuNote" placeholder="记录医生的调整建议..."></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:8px;">➕ 添加随访记录</button>
+        </form>
+        <div class="table-wrap" style="margin-top:16px;">
+            <table id="followupTable">
+                <thead><tr><th>日期</th><th>体重</th><th>腰围</th><th>HbA1c</th><th>备注</th><th>操作</th></tr></thead>
+                <tbody id="followupTbody">
+                    <tr><td colspan="6" class="empty-state">暂无随访记录</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+</div><!-- /container -->
+
+<script>
+// ===== UTILS =====
+const API = {
+    diet: '/api/diet',
+    exercise: '/api/exercise',
+    glucose: '/api/glucose',
+    medication: '/api/medication',
+    followup: '/api/followup',
+    goals: '/api/goals',
+    customDrugs: '/api/custom-drugs',
+};
+
+async function apiGet(url) {
+    const r = await fetch(url);
+    return await r.json();
+}
+async function apiPost(url, data) {
+    const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    return await r.json();
+}
+async function apiDelete(url) {
+    const r = await fetch(url, { method: 'DELETE' });
+    return await r.json();
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+
+function glucoseBadge(val) {
+    val = parseFloat(val);
+    if (!val) return '<span class="badge">—</span>';
+    if (val < 3.9) return `<span class="badge badge-danger">${val} ⚠️低血糖</span>`;
+    if (val > 7.8) return `<span class="badge badge-high">${val} ⚠️偏高</span>`;
+    if (val >= 7.0) return `<span class="badge badge-warn">${val} 偏高</span>`;
+    return `<span class="badge badge-normal">${val} ✅</span>`;
+}
+
+function showToast(msg, color) {
+    const t = document.getElementById('quickMedToast');
+    if (!t) { alert(msg); return; }
+    t.textContent = msg;
+    t.style.color = color || 'var(--success)';
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 2500);
+}
+
+// ===== DATE DISPLAY =====
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('zh-CN', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+});
+
+// ===== 夜间/白天模式 =====
+(function initTheme() {
+    const saved = localStorage.getItem('dm_theme');
+    if (saved === 'dark') document.body.classList.add('dark');
+    updateThemeIcon();
+})();
+window.toggleTheme = function() {
+    document.body.classList.toggle('dark');
+    const isDark = document.body.classList.contains('dark');
+    localStorage.setItem('dm_theme', isDark ? 'dark' : 'light');
+    updateThemeIcon();
+};
+function updateThemeIcon() {
+    const btn = document.querySelector('.theme-toggle');
+    if (!btn) return;
+    btn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+}
+
+// ===== TABS (支持拖拽排序) =====
+const tabNav = document.getElementById('tabNav');
+let dragSrc = null;
+
+// 加载保存的标签顺序
+function loadTabOrder() {
+    try {
+        const order = JSON.parse(localStorage.getItem('dm_tab_order') || '[]');
+        if (order.length === 6) {
+            const btns = [...tabNav.querySelectorAll('.tab-btn')];
+            const activeTab = tabNav.querySelector('.tab-btn.active')?.dataset.tab;
+            btns.sort((a, b) => order.indexOf(a.dataset.tab) - order.indexOf(b.dataset.tab));
+            btns.forEach(b => tabNav.appendChild(b));
+            // 恢复激活状态
+            if (activeTab) {
+                const activeBtn = tabNav.querySelector(`[data-tab="${activeTab}"]`);
+                if (activeBtn) {
+                    tabNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    activeBtn.classList.add('active');
+                }
+            }
+        }
+    } catch(e) {}
+}
+
+function saveTabOrder() {
+    const order = [...tabNav.querySelectorAll('.tab-btn')].map(b => b.dataset.tab);
+    localStorage.setItem('dm_tab_order', JSON.stringify(order));
+}
+
+tabNav.addEventListener('dragstart', e => {
+    dragSrc = e.target.closest('.tab-btn');
+    if (!dragSrc) return;
+    dragSrc.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+});
+tabNav.addEventListener('dragend', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (btn) btn.classList.remove('dragging');
+    tabNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('drag-over'));
+    saveTabOrder();
+});
+tabNav.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.tab-btn');
+    if (target && target !== dragSrc) {
+        tabNav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('drag-over'));
+        target.classList.add('drag-over');
+    }
+});
+tabNav.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.tab-btn');
+    if (!target || !dragSrc || target === dragSrc) return;
+    const btns = [...tabNav.querySelectorAll('.tab-btn')];
+    const srcIdx = btns.indexOf(dragSrc);
+    const tgtIdx = btns.indexOf(target);
+    if (srcIdx < tgtIdx) {
+        tabNav.insertBefore(dragSrc, target.nextSibling);
+    } else {
+        tabNav.insertBefore(dragSrc, target);
+    }
+});
+
+// 标签点击切换
+tabNav.addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+});
+
+// 初始化加载标签顺序
+loadTabOrder();
+
+// ===== SET DEFAULT DATES =====
+const today = new Date().toISOString().split('T')[0];
+['dietDate','exDate','gluDate','medDate','fuDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = today;
+});
+document.getElementById('gluTime').value = new Date().toTimeString().slice(0,5);
+const medTimeDetailEl = document.getElementById('medTimeDetail');
+if (medTimeDetailEl) medTimeDetailEl.value = new Date().toTimeString().slice(0,5);
+
+// ===== DIET RECORDS =====
+let dietRecords = [];
+
+async function loadDiet() {
+    dietRecords = await apiGet(API.diet);
+    renderDiet();
+}
+
+function renderDiet() {
+    const tbody = document.getElementById('dietTbody');
+    if (dietRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无记录，请添加第一条饮食记录</td></tr>';
+    } else {
+        tbody.innerHTML = dietRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.meal}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.food}">${r.food}</td>
+                <td>${r.calories || '—'} kcal</td>
+                <td>${glucoseBadge(r.glucose)}</td>
+                <td>${r.eating_order || '—'}</td>
+                <td>${r.note || '—'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteDiet(${r.id})">删除</button></td>
+            </tr>
+        `).join('');
+    }
+    const todayRecords = dietRecords.filter(r => r.date === today);
+    const totalCal = todayRecords.reduce((sum, r) => sum + (parseFloat(r.calories) || 0), 0);
+    document.getElementById('dietTotalCal').textContent = totalCal;
+    document.getElementById('dietTotalCal').style.color = totalCal >= 2200 ? 'var(--success)' : 'var(--warning)';
+}
+
+document.getElementById('dietForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+        date: document.getElementById('dietDate').value,
+        meal: document.getElementById('dietMeal').value,
+        food: document.getElementById('dietFood').value,
+        calories: document.getElementById('dietCalories').value,
+        glucose: document.getElementById('dietGlucose').value,
+        order: document.getElementById('dietOrder').value,
+        note: document.getElementById('dietNote').value,
+    };
+    await apiPost(API.diet, data);
+    this.reset();
+    document.getElementById('dietDate').value = today;
+    await loadDiet();
+});
+
+async function deleteDiet(id) {
+    if (confirm('确定删除这条饮食记录吗？')) {
+        await apiDelete(API.diet + '/' + id);
+        await loadDiet();
+    }
+}
+
+// ===== EXERCISE RECORDS =====
+let exerciseRecords = [];
+
+async function loadExercise() {
+    exerciseRecords = await apiGet(API.exercise);
+    renderExercise();
+}
+
+function renderExercise() {
+    const tbody = document.getElementById('exerciseTbody');
+    if (exerciseRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">暂无记录，请添加第一条运动记录</td></tr>';
+    } else {
+        tbody.innerHTML = exerciseRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.type}</td>
+                <td>${r.duration} 分钟</td>
+                <td>${r.intensity}</td>
+                <td>${r.before_glucose || '—'}</td>
+                <td>${r.after_glucose || '—'}</td>
+                <td>${r.sugar_carried === '是' ? '✅' : '❌'}</td>
+                <td>${r.symptom || '无'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteExercise(${r.id})">删除</button></td>
+            </tr>
+        `).join('');
+    }
+}
+
+document.getElementById('exerciseForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+        date: document.getElementById('exDate').value,
+        type: document.getElementById('exType').value,
+        duration: document.getElementById('exDuration').value,
+        intensity: document.getElementById('exIntensity').value,
+        beforeGlucose: document.getElementById('exBeforeGlucose').value,
+        afterGlucose: document.getElementById('exAfterGlucose').value,
+        sugar: document.getElementById('exSugar').value,
+        symptom: document.getElementById('exSymptom').value,
+        note: document.getElementById('exNote').value,
+    };
+    await apiPost(API.exercise, data);
+    this.reset();
+    document.getElementById('exDate').value = today;
+    document.getElementById('exIntensity').value = '中';
+    document.getElementById('exSugar').value = '是';
+    document.getElementById('exSymptom').value = '无';
+    await loadExercise();
+});
+
+async function deleteExercise(id) {
+    if (confirm('确定删除这条运动记录吗？')) {
+        await apiDelete(API.exercise + '/' + id);
+        await loadExercise();
+    }
+}
+
+// ===== GLUCOSE RECORDS =====
+let glucoseRecords = [];
+
+async function loadGlucose() {
+    glucoseRecords = await apiGet(API.glucose);
+    renderGlucose();
+}
+
+function renderGlucose() {
+    const tbody = document.getElementById('glucoseTbody');
+    if (glucoseRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无记录，请添加第一条血糖记录</td></tr>';
+    } else {
+        tbody.innerHTML = glucoseRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.time}</td>
+                <td>${r.type}</td>
+                <td><strong>${r.value} mmol/L</strong></td>
+                <td>${glucoseBadge(r.value)}</td>
+                <td>${r.note || '—'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteGlucose(${r.id})">删除</button></td>
+            </tr>
+        `).join('');
+    }
+}
+
+document.getElementById('glucoseForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+        date: document.getElementById('gluDate').value,
+        time: document.getElementById('gluTime').value,
+        type: document.getElementById('gluType').value,
+        value: document.getElementById('gluValue').value,
+        note: document.getElementById('gluNote').value,
+    };
+    await apiPost(API.glucose, data);
+    this.reset();
+    document.getElementById('gluDate').value = today;
+    document.getElementById('gluTime').value = new Date().toTimeString().slice(0,5);
+    await loadGlucose();
+});
+
+async function deleteGlucose(id) {
+    if (confirm('确定删除这条血糖记录吗？')) {
+        await apiDelete(API.glucose + '/' + id);
+        await loadGlucose();
+    }
+}
+
+// ===== MEDICATION RECORDS =====
+let medRecords = [];
+
+async function loadMedication() {
+    medRecords = await apiGet(API.medication);
+    renderMedication();
+}
+
+function renderMedication() {
+    const tbody = document.getElementById('medTbody');
+    if (medRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无记录，请点击上方快捷按钮或手动添加</td></tr>';
+    } else {
+        tbody.innerHTML = medRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.time_detail || '—'}</td>
+                <td><strong>${r.name}</strong></td>
+                <td>${r.dose}</td>
+                <td>${r.time_period}</td>
+                <td>${r.side_effect || '无'}</td>
+                <td>${r.note || '—'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteMed(${r.id})">删除</button></td>
+            </tr>
+        `).join('');
+    }
+    renderMedSummary();
+}
+
+// 解析剂量统一换算为毫克（如 "20mg" → 20, "0.1g" → 100, "0.5mg" → 0.5）
+function parseDoseToMg(doseStr) {
+    if (!doseStr) return 0;
+    const m = doseStr.match(/([\d.]+)\s*([a-zA-Zμ]+)?/);
+    if (!m) return 0;
+    const num = parseFloat(m[1]);
+    const unit = (m[2] || 'mg').toLowerCase();
+    if (unit === 'g') return num * 1000;
+    if (unit === 'mg') return num;
+    if (unit === 'μg' || unit === 'ug') return num / 1000;
+    // 未知单位按原数处理
+    return num;
+}
+
+function renderMedSummary() {
+    const totalDaysEl = document.getElementById('summaryDays');
+    const totalTimesEl = document.getElementById('summaryTotal');
+    const totalKindsEl = document.getElementById('summaryKinds');
+    const stbody = document.getElementById('summaryTbody');
+
+    if (medRecords.length === 0) {
+        totalDaysEl.textContent = '0';
+        totalTimesEl.textContent = '0';
+        totalKindsEl.textContent = '0';
+        stbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无用药记录</td></tr>';
+        return;
+    }
+
+    // 统计每种药物
+    const stats = {};
+    const allDates = new Set();
+    medRecords.forEach(r => {
+        allDates.add(r.date);
+        if (!stats[r.name]) {
+            stats[r.name] = { dates: new Set(), count: 0, totalDoseMg: 0 };
+        }
+        stats[r.name].dates.add(r.date);
+        stats[r.name].count += 1;
+        stats[r.name].totalDoseMg += parseDoseToMg(r.dose);
+    });
+
+    totalDaysEl.textContent = allDates.size;
+    totalTimesEl.textContent = medRecords.length;
+    totalKindsEl.textContent = Object.keys(stats).length;
+
+    stbody.innerHTML = Object.entries(stats)
+        .sort((a, b) => b[1].count - a[1].count)
+        .map(([name, s]) => `
+            <tr>
+                <td><strong>${name}</strong></td>
+                <td>${s.dates.size} 天</td>
+                <td>${s.count} 次</td>
+                <td>${s.totalDoseMg.toFixed(1)} mg</td>
+            </tr>
+        `).join('');
+}
+
+// Quick med button handler
+document.querySelectorAll('.quick-med-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const now = new Date();
+        const dateStr = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0');
+        const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':' +
+            String(now.getSeconds()).padStart(2, '0');
+
+        const data = {
+            date: dateStr,
+            timeDetail: timeStr,
+            name: this.dataset.drug,
+            dose: this.dataset.dose,
+            time: this.dataset.time,
+            sideEffect: '无',
+            note: '快捷添加',
+        };
+        await apiPost(API.medication, data);
+        await loadMedication();
+        showToast('✅ 已添加：' + data.name + ' ' + data.dose + ' · ' + dateStr + ' ' + timeStr);
+    });
+});
+
+document.getElementById('medForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+        date: document.getElementById('medDate').value,
+        timeDetail: document.getElementById('medTimeDetail').value,
+        name: document.getElementById('medName').value,
+        dose: document.getElementById('medDose').value,
+        time: document.getElementById('medTime').value,
+        sideEffect: document.getElementById('medSideEffect').value,
+        note: document.getElementById('medNote').value,
+    };
+    await apiPost(API.medication, data);
+    this.reset();
+    document.getElementById('medDate').value = today;
+    document.getElementById('medTimeDetail').value = new Date().toTimeString().slice(0, 5);
+    await loadMedication();
+});
+
+async function deleteMed(id) {
+    if (confirm('确定删除这条用药记录吗？')) {
+        await apiDelete(API.medication + '/' + id);
+        await loadMedication();
+    }
+}
+
+// 导出用药记录为 CSV（Excel 可直接打开）
+window.exportMedCSV = async function() {
+    if (medRecords.length === 0) { alert('没有可导出的用药记录'); return; }
+    // BOM for Excel Chinese support
+    const BOM = '\uFEFF';
+    const headers = ['日期', '具体时间', '药物名称', '剂量', '服用时段', '不良反应', '备注'];
+    const rows = medRecords.map(r => [
+        r.date || '',
+        r.time_detail || '',
+        r.name || '',
+        r.dose || '',
+        r.time_period || '',
+        r.side_effect || '无',
+        (r.note || '').replace(/,/g, '，'),
+    ]);
+    const csv = BOM + headers.join(',') + '\n' + rows.map(r => r.map(c => '"' + c + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = '用药记录_' + today + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ 已导出 ' + medRecords.length + ' 条用药记录');
+};
+
+// 药物剂量自动填充
+const DRUG_DOSES = {
+    '氢溴酸替格列汀': '20mg',
+    '甲钴胺': '0.5mg',
+    '硫辛酸': '0.1g',
+    '依帕司他': '50mg',
+    '阿卡波糖': '50mg',
+    '伏格列波糖': '0.2mg',
+    '西格列汀': '100mg',
+    '瑞格列奈': '0.5mg',
+};
+document.getElementById('medName').addEventListener('change', function() {
+    const dose = DRUG_DOSES[this.value];
+    if (dose) document.getElementById('medDose').value = dose;
+    else document.getElementById('medDose').value = '';
+});
+
+// ===== 自定义快捷用药按钮 (跨设备同步) =====
+let customDrugs = [];
+
+async function loadCustomDrugs() {
+    try {
+        customDrugs = await apiGet(API.customDrugs);
+    } catch { customDrugs = []; }
+    renderCustomButtons();
+}
+
+function renderCustomButtons() {
+    const container = document.getElementById('customButtonsList');
+    if (!container) return;
+    if (customDrugs.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-light); font-size:0.85rem; padding:8px;">暂无自定义按钮，点击右上"+ 添加"创建</div>';
+        return;
+    }
+    container.innerHTML = customDrugs.map(d => `
+        <div style="position:relative;">
+            <button class="btn quick-med-btn custom-med-btn" data-drug="${d.name}" data-dose="${d.dose}" data-time="${d.time_period}" style="background:#805ad5; width:100%;">
+                💊 ${d.name}<br><small>${d.dose} · ${d.time_period}</small>
+            </button>
+            <button onclick="removeCustomDrug(${d.id})" style="position:absolute; top:4px; right:4px; background:rgba(255,255,255,0.3); color:white; border:none; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:0.75rem; line-height:1;">×</button>
+        </div>
+    `).join('');
+    container.querySelectorAll('.custom-med-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0');
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0') + ':' +
+                String(now.getSeconds()).padStart(2, '0');
+            const data = {
+                date: dateStr,
+                timeDetail: timeStr,
+                name: this.dataset.drug,
+                dose: this.dataset.dose,
+                time: this.dataset.time,
+                sideEffect: '无',
+                note: '快捷添加',
+            };
+            await apiPost(API.medication, data);
+            await loadMedication();
+            showToast('✅ 已添加：' + data.name + ' ' + data.dose + ' · ' + dateStr + ' ' + timeStr);
+        });
+    });
+}
+window.toggleCustomForm = function() {
+    const f = document.getElementById('customForm');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+};
+window.addCustomDrug = async function() {
+    const name = document.getElementById('customDrugName').value.trim();
+    const dose = document.getElementById('customDose').value.trim();
+    const time = document.getElementById('customTime').value;
+    if (!name) { alert('请输入药名'); return; }
+    if (!dose) { alert('请输入剂量'); return; }
+    await apiPost(API.customDrugs, { name, dose, time });
+    document.getElementById('customDrugName').value = '';
+    document.getElementById('customDose').value = '';
+    await loadCustomDrugs();
+    document.getElementById('customForm').style.display = 'none';
+    showToast('✅ 已保存：' + name);
+};
+window.removeCustomDrug = async function(id) {
+    if (!confirm('确定删除这个自定义按钮吗？')) return;
+    await apiDelete(API.customDrugs + '/' + id);
+    await loadCustomDrugs();
+};
+loadCustomDrugs();
+
+// ===== FOLLOWUP RECORDS =====
+let followupRecords = [];
+
+async function loadFollowup() {
+    followupRecords = await apiGet(API.followup);
+    renderFollowup();
+}
+
+function renderFollowup() {
+    const tbody = document.getElementById('followupTbody');
+    if (followupRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无随访记录</td></tr>';
+    } else {
+        tbody.innerHTML = followupRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.weight || '—'} kg</td>
+                <td>${r.waist || '—'} cm</td>
+                <td>${r.hba1c || '—'}%</td>
+                <td>${r.note || '—'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteFollowup(${r.id})">删除</button></td>
+            </tr>
+        `).join('');
+    }
+}
+
+document.getElementById('followupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+        date: document.getElementById('fuDate').value,
+        weight: document.getElementById('fuWeight').value,
+        waist: document.getElementById('fuWaist').value,
+        hba1c: document.getElementById('fuHbA1c').value,
+        note: document.getElementById('fuNote').value,
+    };
+    await apiPost(API.followup, data);
+    this.reset();
+    document.getElementById('fuDate').value = today;
+    await loadFollowup();
+});
+
+async function deleteFollowup(id) {
+    if (confirm('确定删除这条随访记录吗？')) {
+        await apiDelete(API.followup + '/' + id);
+        await loadFollowup();
+    }
+}
+
+// ===== GOALS =====
+let goalsData = { weight: 51, glucose: 8.5 };
+
+async function loadGoals() {
+    goalsData = await apiGet(API.goals);
+    updateGoalBars();
+}
+
+function updateGoalBars() {
+    const w = parseFloat(goalsData.weight) || 51;
+    const g = parseFloat(goalsData.glucose) || 8.5;
+    const weightPct = Math.min(100, Math.max(0, ((w - 48) / (65 - 48)) * 100));
+    document.getElementById('weightBar').style.width = weightPct + '%';
+    const gluPct = Math.min(100, Math.max(0, ((9 - g) / (9 - 7.8)) * 100));
+    document.getElementById('glucoseBar').style.width = gluPct + '%';
+}
+
+window.updateGoals = async function() {
+    const w = parseFloat(document.getElementById('goalWeight').value);
+    const g = parseFloat(document.getElementById('goalGlucose').value);
+    const data = {};
+    if (w) data.weight = w;
+    if (g) data.glucose = g;
+    await apiPost(API.goals, data);
+    document.getElementById('goalWeight').value = '';
+    document.getElementById('goalGlucose').value = '';
+    await loadGoals();
+};
+
+// ===== INIT =====
+(async function init() {
+    await loadDiet();
+    await loadExercise();
+    await loadGlucose();
+    await loadMedication();
+    await loadFollowup();
+    await loadGoals();
+})();
+</script>
+
+</body>
+</html>
