@@ -19,7 +19,7 @@
 ## 🚀 快速部署（Docker Compose）
 
 ```bash
-git clone https://github.com/mclarenlm/diabetes.git
+git clone https://github.com/mclarenlm/diabetes-tracker-nas-app.git
 cd diabetes
 mkdir -p data
 docker compose up -d
