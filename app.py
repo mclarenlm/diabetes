@@ -3,7 +3,7 @@
 数据存储在 SQLite，数据文件挂载到 NAS 持久化目录
 新增：个人信息(profile)、记录编辑(PUT)、数据备份(backup/restore)、DB连接安全
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 import sqlite3
 import os
 import json
@@ -11,6 +11,15 @@ import json
 app = Flask(__name__, static_folder=None, template_folder=None)
 
 DB_PATH = os.environ.get('DB_PATH', '/app/data/diabetes.db')
+
+# ========== 访问安全（Phase 1：单密码 gate） ==========
+# 设置环境变量 ACCESS_PASSWORD 即开启密码保护；留空则保持开放（向后兼容）
+ACCESS_PASSWORD = (os.environ.get('ACCESS_PASSWORD', '') or '').strip()
+AUTH_ENABLED = bool(ACCESS_PASSWORD)
+# SECRET_KEY 用于签名 session；生产环境务必通过环境变量固定，否则重启后需重新登录
+app.secret_key = (os.environ.get('SECRET_KEY') or os.urandom(24).hex())
+app.config['PERMANENT_SESSION_LIFETIME'] = int(os.environ.get('SESSION_TIMEOUT', '86400'))  # 默认 24h
+
 
 
 def get_db():
@@ -93,6 +102,95 @@ def init_db():
 @app.route('/')
 def index():
     return app.response_class(HTML_CONTENT, mimetype='text/html; charset=utf-8')
+
+
+# ========== 登录页（未授权时展示） ==========
+LOGIN_HTML = '''<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>糖尿病记录工具 - 登录</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+         background:linear-gradient(135deg,#e8f5e9,#e3f2fd); }
+  .card { background:#fff; padding:32px 28px; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,.12); width:90%; max-width:360px; }
+  h2 { margin:0 0 4px; color:#2e7d32; }
+  .sub { color:#888; font-size:.82rem; margin-bottom:20px; }
+  label { display:block; font-size:.82rem; color:#555; margin-bottom:6px; }
+  input { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem; margin-bottom:14px; }
+  button { width:100%; padding:12px; border:none; border-radius:10px; background:#2e7d32; color:#fff; font-size:1rem; cursor:pointer; }
+  button:active { transform:scale(.98); }
+  .msg { color:#c62828; font-size:.82rem; min-height:1.2em; margin-top:8px; text-align:center; }
+</style></head>
+<body><div class="card">
+  <h2>🔐 访问保护</h2>
+  <div class="sub">请输入访问密码以进入糖尿病记录工具</div>
+  <form id="loginForm">
+    <label for="pwd">访问密码</label>
+    <input type="password" id="pwd" placeholder="请输入密码" autocomplete="current-password" autofocus>
+    <button type="submit">登 录</button>
+    <div class="msg" id="msg"></div>
+  </form>
+</div>
+<script>
+  document.getElementById('loginForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var pwd = document.getElementById('pwd').value;
+    var msg = document.getElementById('msg');
+    try {
+      var r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password: pwd}) });
+      var d = await r.json();
+      if (r.ok && d.ok) { location.href = '/'; }
+      else { msg.textContent = d.error || '登录失败'; }
+    } catch(err) { msg.textContent = '网络错误，请重试'; }
+  });
+</script>
+</body></html>'''
+
+
+@app.before_request
+def require_auth():
+    """单密码 gate：未设置 ACCESS_PASSWORD 时完全开放；设置后所有请求需登录。"""
+    if not AUTH_ENABLED:
+        return
+    path = request.path
+    # 登录/登出接口与 PWA 必要资源放行
+    if path in ('/api/login', '/api/logout', '/manifest.json', '/sw.js'):
+        return
+    if session.get('authed'):
+        return
+    # API 请求返回 401，由前端弹出登录层
+    if path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': '未授权，请先登录', 'needAuth': True}), 401
+    # 页面请求：未登录直接展示登录页
+    if path in ('/', ''):
+        return app.response_class(LOGIN_HTML, mimetype='text/html; charset=utf-8')
+    return jsonify({'ok': False, 'error': '未授权', 'needAuth': True}), 401
+
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    if not AUTH_ENABLED:
+        return jsonify({'ok': True, 'message': '未启用密码保护'})
+    data = request.json or {}
+    pwd = (data.get('password') or '').strip()
+    if pwd and pwd == ACCESS_PASSWORD:
+        session['authed'] = True
+        session.permanent = True
+        return jsonify({'ok': True})
+    return jsonify({'ok': False, 'error': '密码错误'}), 401
+
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    session.pop('authed', None)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/auth-status', methods=['GET'])
+def api_auth_status():
+    return jsonify({'enabled': AUTH_ENABLED, 'authed': bool(session.get('authed'))})
 
 
 @app.route('/manifest.json')

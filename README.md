@@ -48,8 +48,29 @@ diabetes/
 |----------|--------|------|
 | `DB_PATH` | `/app/data/diabetes.db` | SQLite 数据库路径 |
 | `TZ` | `Asia/Shanghai` | 时区设置 |
+| `ACCESS_PASSWORD` | 空（关闭） | 设置后开启**访问密码保护**，未登录无法查看/录入任何数据 |
+| `SECRET_KEY` | 随机生成 | 用于签名 session；生产环境务必固定，否则容器重启后需重新登录 |
+| `SESSION_TIMEOUT` | `86400`（24h） | 登录会话有效期（秒） |
 
 修改 `docker-compose.yml` 中的端口映射（默认 `5088:5000`）和数据卷路径即可自定义。
+
+### 🔐 开启访问密码（强烈建议）
+
+在 `docker-compose.yml` 的 `environment` 中增加：
+
+```yaml
+environment:
+  - DB_PATH=/app/data/diabetes.db
+  - TZ=Asia/Shanghai
+  - ACCESS_PASSWORD=你的强密码
+  - SECRET_KEY=一段随机字符串（可用 openssl rand -hex 24 生成）
+```
+
+开启后：
+- 未登录访问页面会显示登录页；所有 API 返回 `401`。
+- 登录后浏览器记住会话，可正常使用；右上角出现「🔓 退出」按钮。
+- 会话过期时页面会自动弹出登录层，无需刷新。
+- 若 NAS 仅局域网使用且已信任网络，可不设；一旦端口暴露到公网，务必设置。
 
 ## 🔧 技术栈
 

@@ -265,6 +265,7 @@
         <h1>🍃 糖尿病个性化治疗与控糖方案</h1>
         <div class="date-display" id="currentDate"></div>
         <button class="theme-toggle" onclick="toggleTheme()" title="切换夜间/白天模式">🌙</button>
+        <button id="logoutBtn" class="theme-toggle" style="display:none;" onclick="apiLogout()" title="退出登录">🔓</button>
     </div>
 </header>
 
@@ -503,6 +504,17 @@
                 <button class="btn btn-primary" style="flex:1;" onclick="submitTemplate()">保存</button>
                 <button class="btn btn-sm" style="flex:1; background:var(--border); color:var(--text);" onclick="closeTemplateModal()">取消</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 登录浮层（API 返回 401 时弹出） -->
+    <div id="loginOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:2000; align-items:center; justify-content:center; padding:16px;">
+        <div style="background:var(--card); border-radius:14px; width:100%; max-width:360px; padding:24px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <h3 style="margin:0 0 4px; color:var(--primary);">🔐 需要登录</h3>
+            <p style="font-size:0.8rem; color:var(--text-light); margin:0 0 16px;">请输入访问密码</p>
+            <input type="password" id="overlayPwd" placeholder="访问密码" autocomplete="current-password" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:1rem; margin-bottom:12px; box-sizing:border-box;">
+            <button class="btn btn-primary" style="width:100%;" onclick="submitLoginOverlay()">登 录</button>
+            <div id="overlayMsg" style="color:var(--danger); font-size:0.8rem; min-height:1.1em; margin-top:8px; text-align:center;"></div>
         </div>
     </div>
 
@@ -992,10 +1004,54 @@ document.getElementById('currentDate').textContent =
     new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
 // ===== 通用API =====
-async function apiGet(url) { const r = await fetch(url); return await r.json(); }
-async function apiPost(url, data) { const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); return await r.json(); }
-async function apiPut(url, data) { const r = await fetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); return await r.json(); }
-async function apiDelete(url) { const r = await fetch(url, { method: 'DELETE' }); return await r.json(); }
+async function apiFetch(url, options) {
+    const r = await fetch(url, options);
+    if (r.status === 401) {
+        let d = {};
+        try { d = await r.json(); } catch (e) {}
+        if (d.needAuth) showLoginOverlay();
+    }
+    return r;
+}
+async function apiGet(url) { const r = await apiFetch(url); return await r.json(); }
+async function apiPost(url, data) { const r = await apiFetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); return await r.json(); }
+async function apiPut(url, data) { const r = await apiFetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); return await r.json(); }
+async function apiDelete(url) { const r = await apiFetch(url, { method: 'DELETE' }); return await r.json(); }
+
+function showLoginOverlay() {
+    const o = document.getElementById('loginOverlay');
+    o.style.display = 'flex';
+    setTimeout(() => document.getElementById('overlayPwd').focus(), 50);
+}
+window.submitLoginOverlay = async function() {
+    const pwd = document.getElementById('overlayPwd').value;
+    const msg = document.getElementById('overlayMsg');
+    try {
+        const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password: pwd}) });
+        const d = await r.json();
+        if (r.ok && d.ok) { location.reload(); }
+        else { msg.textContent = d.error || '登录失败'; }
+    } catch (e) { msg.textContent = '网络错误，请重试'; }
+};
+document.getElementById('loginOverlay').addEventListener('click', e => {
+    if (e.target.id === 'loginOverlay') document.getElementById('loginOverlay').style.display = 'none';
+});
+document.getElementById('overlayPwd').addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.submitLoginOverlay();
+});
+
+window.apiLogout = async function() {
+    if (!confirm('确定退出登录吗？')) return;
+    await fetch('/api/logout', { method:'POST' });
+    location.reload();
+};
+
+async function checkAuthStatus() {
+    try {
+        const s = await apiGet('/api/auth-status');
+        if (s.enabled) document.getElementById('logoutBtn').style.display = 'inline-block';
+    } catch (e) {}
+}
 
 function showToast(msg, type='ok') {
     const el = document.getElementById('quickMedToast');
@@ -2317,6 +2373,7 @@ async function loadAll() {
     await loadCustomDrugs();
     await loadMealTemplates();
     await updateTodayOverview();
+    await checkAuthStatus();
 }
 
 // ===== 食物GI数据库 =====
