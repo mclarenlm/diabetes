@@ -19,6 +19,18 @@
     {
       "path": "pages/exercise/index",
       "style": { "navigationBarTitleText": "运动记录" }
+    },
+    {
+      "path": "pages/followup/index",
+      "style": { "navigationBarTitleText": "目标管理" }
+    },
+    {
+      "path": "pages/gi/index",
+      "style": { "navigationBarTitleText": "GI查询" }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": { "navigationBarTitleText": "设置" }
     }
   ],
   "globalStyle": {

@@ -6,6 +6,9 @@ import Glucose from '@/pages/glucose/index.vue'
 import Diet from '@/pages/diet/index.vue'
 import Medication from '@/pages/medication/index.vue'
 import Exercise from '@/pages/exercise/index.vue'
+import Followup from '@/pages/followup/index.vue'
+import Gi from '@/pages/gi/index.vue'
+import Profile from '@/pages/profile/index.vue'
 
 const store = useAppStore()
 const isDark = ref(false)
@@ -18,9 +21,9 @@ const tabs = [
   { key: 'diet', emoji: '🍽️', label: '饮食', comp: Diet },
   { key: 'exercise', emoji: '🏃', label: '运动', comp: Exercise },
   { key: 'glucose', emoji: '🩸', label: '血糖', comp: Glucose },
-  { key: 'followup', emoji: '🎯', label: '目标', comp: null },
-  { key: 'gi', emoji: '🥗', label: 'GI查询', comp: null },
-  { key: 'profile', emoji: '⚙️', label: '设置', comp: null },
+  { key: 'followup', emoji: '🎯', label: '目标', comp: Followup },
+  { key: 'gi', emoji: '🥗', label: 'GI查询', comp: Gi },
+  { key: 'profile', emoji: '⚙️', label: '设置', comp: Profile },
 ]
 
 const currentComp = shallowRef(Home)
