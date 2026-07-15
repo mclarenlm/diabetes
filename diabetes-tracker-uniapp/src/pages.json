@@ -1,0 +1,22 @@
+{
+  "pages": [
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationBarTitleText": "今日概览"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "糖尿病记录工具",
+    "navigationBarBackgroundColor": "#2c7a7b",
+    "backgroundColor": "#f7fafc"
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^v-(.*)": "@/components/v-$1.vue"
+    }
+  }
+}
