@@ -3,7 +3,7 @@
 数据存储在 SQLite，数据文件挂载到 NAS 持久化目录
 新增：个人信息(profile)、记录编辑(PUT)、数据备份(backup/restore)、DB连接安全
 """
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, send_from_directory
 import sqlite3
 import os
 import json
@@ -11,6 +11,7 @@ import json
 app = Flask(__name__, static_folder=None, template_folder=None)
 
 DB_PATH = os.environ.get('DB_PATH', '/app/data/diabetes.db')
+SPA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'spa')
 
 # ========== 访问安全（Phase 1：单密码 gate） ==========
 # 设置环境变量 ACCESS_PASSWORD 即开启密码保护；留空则保持开放（向后兼容）
@@ -192,7 +193,7 @@ def require_auth():
     if path.startswith('/api/'):
         return jsonify({'ok': False, 'error': '未授权，请先登录', 'needAuth': True}), 401
     # 页面请求：未登录直接展示登录页
-    if path in ('/', ''):
+    if path in ('/', '') or path.startswith('/spa'):
         return app.response_class(LOGIN_HTML, mimetype='text/html; charset=utf-8')
     return jsonify({'ok': False, 'error': '未授权', 'needAuth': True}), 401
 
@@ -387,6 +388,23 @@ self.addEventListener('fetch', e => {
 });
 '''
     return app.response_class(sw, mimetype='application/javascript')
+
+
+# ========== Uni-app SPA 静态服务 ==========
+@app.route('/spa')
+@app.route('/spa/')
+def spa_index():
+    """Uni-app H5 入口"""
+    index_path = os.path.join(SPA_DIR, 'index.html')
+    if os.path.exists(index_path):
+        return app.response_class(open(index_path, 'rb').read(), mimetype='text/html; charset=utf-8')
+    return app.response_class('<html><body><h1>Uni-app SPA not built. Run: npm run build:h5</h1></body></html>', mimetype='text/html; charset=utf-8')
+
+
+@app.route('/spa/<path:filename>')
+def spa_static(filename):
+    """Uni-app 静态资源（JS/CSS/图片等）"""
+    return send_from_directory(SPA_DIR, filename)
 
 
 # ===== 通用 helper =====
