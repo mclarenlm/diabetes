@@ -16,25 +16,36 @@
       "delay": 0
     },
     "distribute": {
-      "android": {
-        "permissions": []
-      },
+      "android": { "permissions": [] },
       "ios": {},
       "sdkConfigs": {}
+    }
+  },
+  "app-harmony": {
+    "name": "糖尿病记录工具",
+    "packageName": "com.mclaren.diabetes.tracker",
+    "versionName": "3.4.0",
+    "versionCode": 340,
+    "minAPIVersion": 11,
+    "targetAPIVersion": 13,
+    "darkmode": true,
+    "splashscreen": {
+      "autoclose": true,
+      "delay": 0
+    },
+    "distribute": {
+      "capabilities": ["internet", "storage"],
+      "permissions": []
     }
   },
   "quickapp": {},
   "mp-weixin": {
     "appid": "",
-    "setting": {
-      "urlCheck": false
-    },
+    "setting": { "urlCheck": false },
     "usingComponents": true
   },
   "h5": {
     "title": "糖尿病记录工具",
-    "router": {
-      "mode": "hash"
-    }
+    "router": { "mode": "hash" }
   }
 }
