@@ -3,7 +3,7 @@
 数据存储在 SQLite，数据文件挂载到 NAS 持久化目录
 新增：个人信息(profile)、记录编辑(PUT)、数据备份(backup/restore)、DB连接安全
 """
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, g
 import sqlite3
 import os
 import json
@@ -23,10 +23,22 @@ app.config['PERMANENT_SESSION_LIFETIME'] = int(os.environ.get('SESSION_TIMEOUT',
 
 
 def get_db():
-    """获取数据库连接"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """获取数据库连接（按请求缓存，自动设置 WAL 模式提升并发性能）"""
+    if 'db' not in g:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA busy_timeout=5000')
+        g.db = conn
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exception):
+    """请求结束时自动关闭数据库连接（统一收口，无需在各路由中手动 close）"""
+    db = g.pop('db', None)
+    if db:
+        db.close()
 
 
 def _current_user():
@@ -101,10 +113,10 @@ def init_db():
                   weight_target REAL,
                   updated_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
 
-    c.execute('INSERT OR IGNORE INTO goals (id, weight, glucose) VALUES (1, "56", "7.8")')
+    c.execute('INSERT OR IGNORE INTO goals (id, weight, glucose) VALUES (1, 56, 7.8)')
     c.execute('''INSERT OR IGNORE INTO profile (id, height, weight, age, gender,
                   glucose_fasting_target, glucose_post_target, weight_target)
-                  VALUES (1, "175", "51", "35", "男", "5.6", "7.8", "56")''')
+                  VALUES (1, 175, 51, 35, "男", 5.6, 7.8, 56)''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS meal_templates
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,6 +134,15 @@ def init_db():
         role TEXT DEFAULT '本人',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('INSERT OR IGNORE INTO members (id, name, role) VALUES (1, "本人", "本人")')
+
+    # ========== 性能索引（按 user_id + date 加速查询） ==========
+    c.execute('CREATE INDEX IF NOT EXISTS idx_diet_user_date ON diet(user_id, date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_glucose_user_date ON glucose(user_id, date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_exercise_user_date ON exercise(user_id, date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_medication_user_date ON medication(user_id, date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_followup_user_date ON followup(user_id, date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_meal_templates_user ON meal_templates(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_custom_drugs_user ON custom_drugs(user_id)')
 
     conn.commit()
     conn.close()
@@ -413,13 +434,12 @@ def _db_op(query, params=(), fetch=False, fetchone=False, commit=True):
 @app.route('/api/profile', methods=['GET'])
 def get_profile():
     row, conn, _ = _db_op('SELECT * FROM profile WHERE user_id=? AND id=1', (_ensure_user(),), fetchone=True)
-    conn.close()
     if row:
         return jsonify(dict(row))
     return jsonify({
-        'height': '175', 'weight': '51', 'age': '35', 'gender': '男',
-        'glucose_fasting_target': '5.6', 'glucose_post_target': '7.8',
-        'weight_target': '56'
+        'height': 175, 'weight': 51, 'age': 35, 'gender': '男',
+        'glucose_fasting_target': 5.6, 'glucose_post_target': 7.8,
+        'weight_target': 56
     })
 
 
@@ -430,13 +450,12 @@ def update_profile():
         '''UPDATE profile SET height=?, weight=?, age=?, gender=?,
            glucose_fasting_target=?, glucose_post_target=?, weight_target=?,
            updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND id=1''',
-        (data.get('height', '175'), data.get('weight', '51'),
-         data.get('age', '35'), data.get('gender', '男'),
-         data.get('glucose_fasting_target', '5.6'),
-         data.get('glucose_post_target', '7.8'),
-         data.get('weight_target', '56'), _ensure_user()),
+        (data.get('height', 175), data.get('weight', 51),
+         data.get('age', 35), data.get('gender', '男'),
+         data.get('glucose_fasting_target', 5.6),
+         data.get('glucose_post_target', 7.8),
+         data.get('weight_target', 56), _ensure_user()),
         commit=True)
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -444,7 +463,6 @@ def update_profile():
 @app.route('/api/diet', methods=['GET'])
 def list_diet():
     rows, conn, _ = _db_op('SELECT * FROM diet WHERE user_id=? ORDER BY id DESC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -457,7 +475,6 @@ def add_diet():
         (_ensure_user(), data.get('date'), data.get('meal'), data.get('food'),
          data.get('calories', ''), data.get('glucose', ''),
          data.get('order', ''), data.get('note', '')))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -470,14 +487,12 @@ def update_diet(item_id):
         (data.get('date'), data.get('meal'), data.get('food'),
          data.get('calories', ''), data.get('glucose', ''),
          data.get('order', ''), data.get('note', ''), _ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
 @app.route('/api/diet/<int:item_id>', methods=['DELETE'])
 def delete_diet(item_id):
     _, conn, _ = _db_op('DELETE FROM diet WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -485,7 +500,6 @@ def delete_diet(item_id):
 @app.route('/api/exercise', methods=['GET'])
 def list_exercise():
     rows, conn, _ = _db_op('SELECT * FROM exercise WHERE user_id=? ORDER BY id DESC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -501,7 +515,6 @@ def add_exercise():
          data.get('intensity', ''), data.get('beforeGlucose', ''),
          data.get('afterGlucose', ''), data.get('sugar', ''),
          data.get('symptom', ''), data.get('note', '')))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -516,14 +529,12 @@ def update_exercise(item_id):
          data.get('intensity', ''), data.get('beforeGlucose', ''),
          data.get('afterGlucose', ''), data.get('sugar', ''),
          data.get('symptom', ''), data.get('note', ''), _ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
 @app.route('/api/exercise/<int:item_id>', methods=['DELETE'])
 def delete_exercise(item_id):
     _, conn, _ = _db_op('DELETE FROM exercise WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -531,7 +542,6 @@ def delete_exercise(item_id):
 @app.route('/api/glucose', methods=['GET'])
 def list_glucose():
     rows, conn, _ = _db_op('SELECT * FROM glucose WHERE user_id=? ORDER BY id DESC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -543,7 +553,6 @@ def add_glucose():
            VALUES (?, ?, ?, ?, ?, ?)''',
         (_ensure_user(), data.get('date'), data.get('time'), data.get('type'),
          data.get('value'), data.get('note', '')))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -554,14 +563,12 @@ def update_glucose(item_id):
         '''UPDATE glucose SET date=?, time=?, type=?, value=?, note=? WHERE user_id=? AND id=?''',
         (data.get('date'), data.get('time'), data.get('type'),
          data.get('value'), data.get('note', ''), _ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
 @app.route('/api/glucose/<int:item_id>', methods=['DELETE'])
 def delete_glucose(item_id):
     _, conn, _ = _db_op('DELETE FROM glucose WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -569,7 +576,6 @@ def delete_glucose(item_id):
 @app.route('/api/medication', methods=['GET'])
 def list_medication():
     rows, conn, _ = _db_op('SELECT * FROM medication WHERE user_id=? ORDER BY id DESC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -584,7 +590,6 @@ def add_medication():
          data.get('name'), data.get('dose', ''),
          data.get('time', ''), data.get('sideEffect', '无'),
          data.get('note', '')))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -598,14 +603,12 @@ def update_medication(item_id):
          data.get('name'), data.get('dose', ''),
          data.get('time', ''), data.get('sideEffect', '无'),
          data.get('note', ''), _ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
 @app.route('/api/medication/<int:item_id>', methods=['DELETE'])
 def delete_medication(item_id):
     _, conn, _ = _db_op('DELETE FROM medication WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -613,7 +616,6 @@ def delete_medication(item_id):
 @app.route('/api/followup', methods=['GET'])
 def list_followup():
     rows, conn, _ = _db_op('SELECT * FROM followup WHERE user_id=? ORDER BY id DESC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -626,7 +628,6 @@ def add_followup():
         (_ensure_user(), data.get('date'), data.get('weight', ''),
          data.get('waist', ''), data.get('hba1c', ''),
          data.get('note', '')))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -638,14 +639,12 @@ def update_followup(item_id):
         (data.get('date'), data.get('weight', ''),
          data.get('waist', ''), data.get('hba1c', ''),
          data.get('note', ''), _ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
 @app.route('/api/followup/<int:item_id>', methods=['DELETE'])
 def delete_followup(item_id):
     _, conn, _ = _db_op('DELETE FROM followup WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -653,21 +652,19 @@ def delete_followup(item_id):
 @app.route('/api/goals', methods=['GET'])
 def get_goals():
     row, conn, _ = _db_op('SELECT * FROM goals WHERE user_id=? AND id=1', (_ensure_user(),), fetchone=True)
-    conn.close()
     if row:
         return jsonify(dict(row))
-    return jsonify({'weight': '56', 'glucose': '7.8'})
+    return jsonify({'weight': 56, 'glucose': 7.8})
 
 
 @app.route('/api/goals', methods=['POST'])
 def update_goals():
     data = request.json
-    w = data.get('weight') or '56'
-    g = data.get('glucose') or '7.8'
+    w = data.get('weight') or 56
+    g = data.get('glucose') or 7.8
     _, conn, _ = _db_op(
         'UPDATE goals SET weight=?, glucose=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND id=1',
         (w, g, _ensure_user()))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -675,7 +672,6 @@ def update_goals():
 @app.route('/api/custom-drugs', methods=['GET'])
 def list_custom_drugs():
     rows, conn, _ = _db_op('SELECT * FROM custom_drugs WHERE user_id=? ORDER BY id ASC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -691,14 +687,12 @@ def add_custom_drug():
         'INSERT INTO custom_drugs (user_id, name, dose, time_period) VALUES (?, ?, ?, ?)',
         (_ensure_user(), name, dose, time_period))
     new_id = cur.lastrowid
-    conn.close()
     return jsonify({'ok': True, 'id': new_id})
 
 
 @app.route('/api/custom-drugs/<int:item_id>', methods=['DELETE'])
 def delete_custom_drug(item_id):
     _, conn, _ = _db_op('DELETE FROM custom_drugs WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -706,7 +700,6 @@ def delete_custom_drug(item_id):
 @app.route('/api/members', methods=['GET'])
 def list_members():
     rows, conn, _ = _db_op('SELECT * FROM members ORDER BY id ASC', fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 @app.route('/api/members', methods=['POST'])
@@ -718,7 +711,6 @@ def add_member():
         return jsonify({'ok': False, 'error': '姓名不能为空'}), 400
     _, conn, cur = _db_op('INSERT INTO members (name, role) VALUES (?, ?)', (name, role))
     new_id = cur.lastrowid
-    conn.close()
     return jsonify({'ok': True, 'id': new_id})
 
 @app.route('/api/members/<int:item_id>', methods=['PUT'])
@@ -731,7 +723,6 @@ def update_member(item_id):
     if not name:
         return jsonify({'ok': False, 'error': '姓名不能为空'}), 400
     _, conn, _ = _db_op('UPDATE members SET name=?, role=? WHERE id=?', (name, role, item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 @app.route('/api/members/<int:item_id>', methods=['DELETE'])
@@ -744,13 +735,11 @@ def delete_member(item_id):
             conn.execute(f'DELETE FROM {t} WHERE user_id=?', (item_id,))
         conn.execute('DELETE FROM members WHERE id=?', (item_id,))
         conn.commit()
-        conn.close()
         if _current_user() == item_id:
             session['user_id'] = 1
         return jsonify({'ok': True})
     except Exception as e:
         conn.rollback()
-        conn.close()
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 @app.route('/api/members/switch', methods=['POST'])
@@ -760,7 +749,6 @@ def switch_member():
     if uid is None:
         return jsonify({'ok': False, 'error': '缺少 user_id'}), 400
     row, conn, _ = _db_op('SELECT id FROM members WHERE id=?', (int(uid),), fetchone=True)
-    conn.close()
     if not row:
         return jsonify({'ok': False, 'error': '成员不存在'}), 404
     session['user_id'] = int(uid)
@@ -770,7 +758,6 @@ def switch_member():
 def current_member():
     uid = _ensure_user()
     row, conn, _ = _db_op('SELECT * FROM members WHERE id=?', (uid,), fetchone=True)
-    conn.close()
     if row:
         return jsonify(dict(row))
     return jsonify({'id': 1, 'name': '本人', 'role': '本人'})
@@ -780,7 +767,6 @@ def current_member():
 @app.route('/api/meal-templates', methods=['GET'])
 def list_meal_templates():
     rows, conn, _ = _db_op('SELECT * FROM meal_templates WHERE user_id=? ORDER BY id DESC', (_ensure_user(),), fetch=True)
-    conn.close()
     return jsonify([dict(r) for r in rows])
 
 
@@ -797,14 +783,12 @@ def add_meal_template():
            VALUES (?, ?, ?, ?, ?, ?)''',
         (_ensure_user(), name, meal, food, data.get('calories', ''), data.get('eating_order', '')))
     new_id = cur.lastrowid
-    conn.close()
     return jsonify({'ok': True, 'id': new_id})
 
 
 @app.route('/api/meal-templates/<int:item_id>', methods=['DELETE'])
 def delete_meal_template(item_id):
     _, conn, _ = _db_op('DELETE FROM meal_templates WHERE user_id=? AND id=?', (_ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -820,7 +804,6 @@ def update_meal_template(item_id):
         '''UPDATE meal_templates SET name=?, meal=?, food=?, calories=?, eating_order=?
            WHERE user_id=? AND id=?''',
         (name, meal, food, data.get('calories', ''), data.get('eating_order', ''), _ensure_user(), item_id))
-    conn.close()
     return jsonify({'ok': True})
 
 
@@ -845,10 +828,8 @@ def backup_data():
         for t in ALLOWED_TABLES:
             rows = conn.execute(f'SELECT * FROM {_safe_table(t)}').fetchall()
             backup[t] = [dict(r) for r in rows]
-        conn.close()
     except Exception:
         conn.rollback()
-        conn.close()
         raise
     return jsonify(backup)
 
@@ -949,11 +930,9 @@ def restore_data():
                         'INSERT OR IGNORE INTO members (id, name, role) VALUES (?, ?, ?)',
                         (r.get('id', 1), r.get('name', '本人'), r.get('role', '本人')))
         conn.commit()
-        conn.close()
         return jsonify({'ok': True})
     except Exception as e:
         conn.rollback()
-        conn.close()
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
