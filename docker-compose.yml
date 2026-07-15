@@ -7,6 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: diabetes-tracker
     restart: unless-stopped
+    # SQLite 不适合多 worker，强制单进程；healthcheck 确保 Flask 存活
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5000/').status==200 else 1)"]
       interval: 30s

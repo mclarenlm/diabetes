@@ -75,7 +75,7 @@ environment:
 ## 🔧 技术栈
 
 - **后端**：Python 3.11 + Flask + Gunicorn
-- **数据库**：SQLite 3
+- **数据库**：SQLite 3（WAL 模式 + 性能索引 + 连接池）
 - **前端**：纯 HTML/CSS/JS（无框架依赖）
 - **部署**：Docker + Docker Compose
 
@@ -92,7 +92,7 @@ docker compose up -d --build
 - **非 root 运行**：Dockerfile 已创建 `appuser` 并 `USER appuser`，容器不再以 root 权限运行。
 - **健康检查**：`docker-compose.yml` 配置了 `healthcheck`，定期访问 `/api/profile`，Flask 假死时 Docker 可自动重启。
 - **依赖锁定**：依赖集中在 `requirements.txt`，版本可复现，便于 CI/CD。
-- **Gunicorn 调优**：worker 数按 CPU 核心数自适应（上限 8），并设 `--timeout 120` 防止备份/恢复大数据量时请求超时。
+- **数据库优化**：SQLite WAL 模式 + `busy_timeout=5000` 避免写入锁死；按请求缓存连接，无需手动关闭；7 个性能索引加速常用查询。SQLite 是单写者模型，Gunicorn 强制 `--workers 1 --threads 2`，多并发请求由线程处理。
 - **备份防注入**：备份/恢复仅允许 `ALLOWED_TABLES` 白名单内的表，杜绝 SQL 注入。
 
 ## 📝 License

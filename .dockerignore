@@ -1,0 +1,24 @@
+# 源文件
+.git/
+.gitignore
+README.md
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
