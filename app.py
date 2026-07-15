@@ -936,6 +936,325 @@ def restore_data():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+# ========== 数据统计 ==========
+@app.route('/api/stats', methods=['GET'])
+def api_stats():
+    """数据统计：平均血糖、TIR、达标率等"""
+    uid = _ensure_user()
+    days = request.args.get('days', '30')
+    try:
+        days = int(days)
+    except ValueError:
+        days = 30
+    conn = get_db()
+    # 最近 N 天血糖统计
+    glu = conn.execute('''
+        SELECT value, type, date, time FROM glucose
+        WHERE user_id=? AND date >= date('now', ?)
+        ORDER BY date DESC
+    ''', (uid, f'-{days} days')).fetchall()
+
+    if not glu:
+        return jsonify({'ok': True, 'count': 0, 'days': days})
+
+    values = [float(r['value']) for r in glu if r['value']]
+    if not values:
+        return jsonify({'ok': True, 'count': 0, 'days': days})
+
+    avg = sum(values) / len(values)
+    vals = sorted(values)
+    n = len(vals)
+    median = vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2
+    variance = sum((x - avg) ** 2 for x in values) / n
+    stddev = variance ** 0.5
+
+    # Time In Range
+    tir_hypo = sum(1 for v in values if v < 3.9)              # 低血糖 <3.9
+    tir_target = sum(1 for v in values if 3.9 <= v <= 10.0)   # 目标范围 3.9-10.0
+    tir_hyper = sum(1 for v in values if v > 10.0)             # 高血糖 >10.0
+    tir_severe_hypo = sum(1 for v in values if v < 3.0)       # 严重低血糖 <3.0
+    tir_severe_hyper = sum(1 for v in values if v > 13.9)     # 严重高血糖 >13.9
+
+    # 按类型统计
+    by_type = {}
+    for r in glu:
+        t = r['type'] or '其他'
+        v = float(r['value'])
+        if t not in by_type:
+            by_type[t] = []
+        by_type[t].append(v)
+
+    type_stats = {}
+    for t, vs in by_type.items():
+        type_stats[t] = {
+            'count': len(vs),
+            'avg': round(sum(vs) / len(vs), 1),
+            'min': round(min(vs), 1),
+            'max': round(max(vs), 1)
+        }
+
+    # 按小时分布
+    hourly = {}
+    for r in glu:
+        try:
+            h = r['time'].split(':')[0] if r['time'] else '00'
+            h = h.zfill(2)
+        except (IndexError, AttributeError):
+            h = '00'
+        v = float(r['value'])
+        if h not in hourly:
+            hourly[h] = []
+        hourly[h].append(v)
+
+    hourly_avg = {}
+    for h in sorted(hourly.keys()):
+        vs = hourly[h]
+        hourly_avg[h] = {
+            'avg': round(sum(vs) / len(vs), 1),
+            'count': len(vs),
+            'min': round(min(vs), 1),
+            'max': round(max(vs), 1)
+        }
+
+    # 每日均值（用于趋势图）
+    daily = {}
+    for r in glu:
+        d = r['date']
+        v = float(r['value'])
+        if d not in daily:
+            daily[d] = []
+        daily[d].append(v)
+
+    daily_avg = {}
+    for d in sorted(daily.keys()):
+        vs = daily[d]
+        daily_avg[d] = {
+            'avg': round(sum(vs) / len(vs), 1),
+            'count': len(vs),
+            'min': round(min(vs), 1),
+            'max': round(max(vs), 1)
+        }
+
+    return jsonify({
+        'ok': True,
+        'days': days,
+        'count': n,
+        'avg': round(avg, 1),
+        'median': round(median, 1),
+        'stddev': round(stddev, 1),
+        'min': round(min(values), 1),
+        'max': round(max(values), 1),
+        'tir': {
+            'hypo': round(tir_hypo / n * 100, 1),
+            'target': round(tir_target / n * 100, 1),
+            'hyper': round(tir_hyper / n * 100, 1),
+            'severe_hypo': round(tir_severe_hypo / n * 100, 1),
+            'severe_hyper': round(tir_severe_hyper / n * 100, 1),
+        },
+        'by_type': type_stats,
+        'hourly': hourly_avg,
+        'daily': daily_avg,
+    })
+
+
+# ========== 月度报告 ==========
+@app.route('/api/report/monthly', methods=['GET'])
+def monthly_report():
+    """生成月度控糖报告数据"""
+    uid = _ensure_user()
+    now_year = request.args.get('year', '')
+    now_month = request.args.get('month', '')
+    import datetime
+    try:
+        if now_year and now_month:
+            y, m = int(now_year), int(now_month)
+        else:
+            today = datetime.date.today()
+            y, m = today.year, today.month
+    except ValueError:
+        today = datetime.date.today()
+        y, m = today.year, today.month
+
+    month_start = f'{y}-{m:02d}-01'
+    if m == 12:
+        month_end = f'{y + 1}-01-01'
+    else:
+        month_end = f'{y}-{m + 1:02d}-01'
+
+    conn = get_db()
+
+    # 血糖
+    glu = conn.execute('''
+        SELECT * FROM glucose
+        WHERE user_id=? AND date >= ? AND date < ?
+        ORDER BY date, time
+    ''', (uid, month_start, month_end)).fetchall()
+
+    # 饮食
+    diet = conn.execute('''
+        SELECT * FROM diet WHERE user_id=? AND date >= ? AND date < ?
+        ORDER BY date
+    ''', (uid, month_start, month_end)).fetchall()
+
+    # 用药
+    med = conn.execute('''
+        SELECT * FROM medication WHERE user_id=? AND date >= ? AND date < ?
+        ORDER BY date
+    ''', (uid, month_start, month_end)).fetchall()
+
+    # 运动
+    ex = conn.execute('''
+        SELECT * FROM exercise WHERE user_id=? AND date >= ? AND date < ?
+        ORDER BY date
+    ''', (uid, month_start, month_end)).fetchall()
+
+    # 随访
+    fu = conn.execute('''
+        SELECT * FROM followup WHERE user_id=? AND date >= ? AND date < ?
+        ORDER BY date
+    ''', (uid, month_start, month_end)).fetchall()
+
+    # 统计
+    glu_values = [float(r['value']) for r in glu if r['value']]
+    n_glu = len(glu_values)
+
+    stats = {}
+    if n_glu > 0:
+        avg = sum(glu_values) / n_glu
+        hypo = sum(1 for v in glu_values if v < 3.9)
+        target = sum(1 for v in glu_values if 3.9 <= v <= 10.0)
+        hyper = sum(1 for v in glu_values if v > 10.0)
+        stats = {
+            'count': n_glu,
+            'avg': round(avg, 1),
+            'min': round(min(glu_values), 1),
+            'max': round(max(glu_values), 1),
+            'tir_target': round(target / n_glu * 100, 1),
+            'tir_hypo': round(hypo / n_glu * 100, 1),
+            'tir_hyper': round(hyper / n_glu * 100, 1),
+        }
+    else:
+        stats = {'count': 0}
+
+    # 用药天数
+    med_days = len(set(r['date'] for r in med))
+
+    # 运动次数
+    ex_count = len(ex)
+
+    # 最新 HbA1c
+    latest_hba1c = None
+    if fu:
+        hba1c_vals = [float(r['hba1c']) for r in fu if r['hba1c']]
+        if hba1c_vals:
+            latest_hba1c = hba1c_vals[-1]
+
+    return jsonify({
+        'ok': True,
+        'year': y,
+        'month': m,
+        'stats': stats,
+        'med_days': med_days,
+        'ex_count': ex_count,
+        'latest_hba1c': latest_hba1c,
+        'glucose': [dict(r) for r in glu],
+        'diet_count': len(diet),
+        'med_count': len(med),
+    })
+
+
+# ========== 智能分析 ==========
+@app.route('/api/insights', methods=['GET'])
+def api_insights():
+    """智能分析：识别高低血糖模式"""
+    uid = _ensure_user()
+    conn = get_db()
+
+    # 最近 14 天的血糖数据
+    glu = conn.execute('''
+        SELECT value, type, date, time FROM glucose
+        WHERE user_id=? AND date >= date('now', '-14 days')
+        ORDER BY date, time
+    ''', (uid,)).fetchall()
+
+    insights = []
+
+    if not glu:
+        return jsonify({'ok': True, 'insights': [{'level': 'info', 'icon': 'ℹ️', 'text': '近14天无血糖数据，开始记录后才能获取分析'}]})
+
+    values = [float(r['value']) for r in glu if r['value']]
+    n = len(values)
+    if n == 0:
+        return jsonify({'ok': True, 'insights': [{'level': 'info', 'icon': 'ℹ️', 'text': '近14天无有效血糖值'}]})
+
+    hypo_count = sum(1 for v in values if v < 3.9)
+    hyper_count = sum(1 for v in values if v > 10.0)
+    severe_hypo = sum(1 for v in values if v < 3.0)
+    avg_val = sum(values) / n
+
+    # 1. 总体评估
+    if hypo_count / n > 0.1:
+        insights.append({'level': 'danger', 'icon': '🚨', 'text': f'低血糖比例 {hypo_count}/{n} ({hypo_count/n*100:.0f}%)，请关注！建议检查用药剂量或进食。'})
+    elif hypo_count > 0:
+        insights.append({'level': 'warn', 'icon': '⚠️', 'text': f'近14天发生 {hypo_count} 次低血糖（<3.9），运动前后请注意加餐。'})
+
+    if hyper_count / n > 0.3:
+        insights.append({'level': 'danger', 'icon': '🚨', 'text': f'高血糖比例 {hyper_count}/{n} ({hyper_count/n*100:.0f}%)，偏高！建议复查饮食和用药方案。'})
+    elif hyper_count / n > 0.15:
+        insights.append({'level': 'warn', 'icon': '⚠️', 'text': f'高血糖比例 {hyper_count}/{n} ({hyper_count/n*100:.0f}%)，可关注餐后血糖控制。'})
+
+    if severe_hypo > 0:
+        insights.append({'level': 'danger', 'icon': '🚨', 'text': f'近14天发生 {severe_hypo} 次严重低血糖（<3.0），请立即就医评估降糖方案！'})
+
+    if avg_val < 5.0 and hypo_count > 0:
+        insights.append({'level': 'warn', 'icon': '📉', 'text': f'平均血糖 {avg_val:.1f} 偏低，注意预防夜间低血糖。'})
+    elif avg_val > 8.0:
+        insights.append({'level': 'warn', 'icon': '📈', 'text': f'平均血糖 {avg_val:.1f} 偏高，建议调整饮食结构或咨询医生。'})
+    else:
+        insights.append({'level': 'good', 'icon': '✅', 'text': f'平均血糖 {avg_val:.1f}，总体控制良好！'})
+
+    # 2. 类型分析（如果数据量够）
+    by_type = {}
+    for r in glu:
+        t = r['type'] or '其他'
+        if t not in by_type:
+            by_type[t] = []
+        by_type[t].append(float(r['value']))
+
+    for t, vs in by_type.items():
+        if len(vs) >= 3:
+            t_avg = sum(vs) / len(vs)
+            if t == '空腹' and t_avg > 7.0:
+                insights.append({'level': 'warn', 'icon': '🌅', 'text': f'空腹血糖均值 {t_avg:.1f}（{len(vs)}次），超过 7.0 标准，建议睡前调整。'})
+            if '餐后' in t and t_avg > 10.0:
+                insights.append({'level': 'warn', 'icon': '🍚', 'text': f'{t}血糖均值 {t_avg:.1f}（{len(vs)}次），注意该餐次的碳水化合物摄入。'})
+            if t == '睡前' and t_avg > 8.0:
+                insights.append({'level': 'warn', 'icon': '🌙', 'text': f'睡前血糖均值 {t_avg:.1f}（{len(vs)}次），偏高可能影响次日空腹血糖。'})
+
+    # 3. 日间波动分析
+    if n >= 7:
+        daily_max = {}
+        for r in glu:
+            d = r['date']
+            v = float(r['value'])
+            if d not in daily_max:
+                daily_max[d] = []
+            daily_max[d].append(v)
+        large_swings = 0
+        for d, vs in daily_max.items():
+            if len(vs) >= 2 and (max(vs) - min(vs)) > 6.0:
+                large_swings += 1
+        if large_swings > len(daily_max) * 0.3:
+            insights.append({'level': 'warn', 'icon': '📊', 'text': f'日间血糖波动较大（{large_swings}/{len(daily_max)}天 >6.0），建议规律进餐时间。'})
+        elif large_swings > 0:
+            insights.append({'level': 'info', 'icon': '📊', 'text': f'日间血糖波动正常，仅 {large_swings} 天波动超过 6.0。'})
+
+    if not insights:
+        insights.append({'level': 'info', 'icon': 'ℹ️', 'text': '数据量不足以生成分析，请继续记录。'})
+
+    return jsonify({'ok': True, 'insights': insights})
+
+
 # 应用启动时自动初始化数据库
 with app.app_context():
     init_db()

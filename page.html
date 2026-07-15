@@ -296,6 +296,7 @@
     <button class="tab-btn" data-tab="glucose" draggable="true"><span class="emoji">🩸</span><span class="icon-text">血糖</span></button>
     <button class="tab-btn" data-tab="followup" draggable="true"><span class="emoji">🎯</span><span class="icon-text">目标</span></button>
     <button class="tab-btn" data-tab="gi" draggable="true"><span class="emoji">🥗</span><span class="icon-text">GI查询</span></button>
+    <button class="tab-btn" data-tab="stats" draggable="true"><span class="emoji">📊</span><span class="icon-text">统计</span></button>
     <button class="tab-btn" data-tab="profile" draggable="true"><span class="emoji">⚙️</span><span class="icon-text">设置</span></button>
 </nav>
 
@@ -931,7 +932,87 @@
 </section>
 
 <!-- ============================================= -->
-<!-- TAB 7: 个人设置 -->
+<!-- TAB 7: 数据统计 -->
+<!-- ============================================= -->
+<section class="tab-content" id="tab-stats">
+    <!-- 智能分析 -->
+    <div class="card" style="border-left:4px solid var(--primary);">
+        <h2><span class="icon">🤖</span> 智能分析</h2>
+        <div id="insightsContainer" style="display:flex; flex-direction:column; gap:8px;">
+            <p style="color:var(--text-light); font-size:0.85rem;">加载中...</p>
+        </div>
+    </div>
+
+    <!-- 概览统计 -->
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:16px;" id="statsOverview">
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">📊 数据天数</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--text);" id="statDays">—</div>
+        </div>
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">🩸 平均血糖</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--primary);" id="statAvg">—</div>
+        </div>
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">📉 中位数</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--text);" id="statMedian">—</div>
+        </div>
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">📈 标准差</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--text);" id="statStddev">—</div>
+        </div>
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">⬇️ 最低</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--danger);" id="statMin">—</div>
+        </div>
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">⬆️ 最高</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--warning);" id="statMax">—</div>
+        </div>
+        <div class="card" style="text-align:center; padding:14px 10px;">
+            <div style="font-size:0.75rem; color:var(--text-light);">🔢 测量次数</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--text);" id="statCount">—</div>
+        </div>
+    </div>
+
+    <!-- TIR 图 + 每日趋势图 -->
+    <div style="display:grid; grid-template-columns: 1fr 2fr; gap:16px; margin-bottom:16px;">
+        <div class="card">
+            <h2><span class="icon">🎯</span> 血糖达标率 (TIR)</h2>
+            <div id="tirChart" style="width:100%; height:240px;"></div>
+            <div id="tirLegend" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:4px; font-size:0.75rem;"></div>
+        </div>
+        <div class="card">
+            <h2><span class="icon">📈</span> 每日血糖趋势</h2>
+            <div id="dailyTrendChart" style="width:100%; height:260px;"></div>
+        </div>
+    </div>
+
+    <!-- 按小时分布 + 按类型 -->
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div class="card">
+            <h2><span class="icon">⏰</span> 各时段血糖均值</h2>
+            <div id="hourlyChart" style="width:100%; height:220px;"></div>
+        </div>
+        <div class="card">
+            <h2><span class="icon">📋</span> 按类型统计</h2>
+            <div id="typeStatsTable" style="font-size:0.82rem;"></div>
+        </div>
+    </div>
+
+    <!-- 时间范围选择器和刷新 -->
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+        <span style="font-size:0.85rem; color:var(--text-light);">📅 统计时间范围：</span>
+        <button class="btn btn-sm stat-range-btn" data-days="7">7天</button>
+        <button class="btn btn-sm stat-range-btn active" data-days="30">30天</button>
+        <button class="btn btn-sm stat-range-btn" data-days="90">90天</button>
+        <button class="btn btn-sm stat-range-btn" data-days="365">全年</button>
+        <button class="btn btn-sm" onclick="loadStats()" style="background:var(--primary); color:white; margin-left:auto;">🔄 刷新</button>
+    </div>
+</section>
+
+<!-- ============================================= -->
+<!-- TAB 8: 个人设置 -->
 <!-- ============================================= -->
 <section class="tab-content" id="tab-profile">
     <div class="card">
@@ -1206,6 +1287,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         // 切换到血糖Tab时重绘图表（Canvas在隐藏容器中无法正常绘制）
         if (tab === 'glucose') setTimeout(renderGlucoseChart, 50);
         if (tab === 'followup') setTimeout(renderWeightChart, 50);
+        if (tab === 'stats') setTimeout(loadStats, 50);
     });
 });
 
@@ -2624,41 +2706,186 @@ function filterGI() {
     container.innerHTML = html;
 }
 
+// ===== 数据统计 =====
+let statsDays = 30;
+let statsData = null;
+
+function loadStats() {
+    const days = document.querySelector('.stat-range-btn.active')?.dataset.days || 30;
+    statsDays = parseInt(days);
+    apiGet(`/api/stats?days=${statsDays}`).then(data => {
+        if (!data.ok) return;
+        renderStats(data);
+    });
+    apiGet('/api/insights').then(data => {
+        if (data.ok) renderInsights(data.insights);
+    });
+}
+
+function renderStats(data) {
+    statsData = data;
+    // 更新概览卡片
+    document.getElementById('statDays').textContent = data.count > 0 ? data.days + '天' : '—';
+    document.getElementById('statAvg').textContent = data.avg ? data.avg + ' mmol/L' : '—';
+    document.getElementById('statMedian').textContent = data.median ? data.median : '—';
+    document.getElementById('statStddev').textContent = data.stddev ? '±' + data.stddev : '—';
+    document.getElementById('statMin').textContent = data.min || '—';
+    document.getElementById('statMax').textContent = data.max || '—';
+    document.getElementById('statCount').textContent = data.count || '0';
+
+    if (data.count === 0) return;
+
+    // TIR 饼图
+    const tirDom = document.getElementById('tirChart');
+    if (tirDom.__echart) tirDom.__echart.dispose();
+    const tirChart = echarts.init(tirDom);
+    tirDom.__echart = tirChart;
+    const tir = data.tir;
+    const dark = document.body.classList.contains('dark');
+    tirChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}% ({d}%)' },
+        series: [{
+            type: 'pie',
+            radius: ['45%', '75%'],
+            center: ['50%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: { borderRadius: 6, borderColor: dark ? '#1e252e' : '#fff', borderWidth: 2 },
+            label: { show: true, formatter: '{d}%', fontSize: 11, color: dark ? '#e8edf2' : '#2d3748' },
+            emphasis: { label: { show: true, fontWeight: 'bold' } },
+            data: [
+                { value: tir.severe_hypo, name: '严重低血糖<3.0', itemStyle: { color: '#805ad5' } },
+                { value: Math.max(0, tir.hypo - tir.severe_hypo), name: '低血糖3.0-3.9', itemStyle: { color: '#e53e3e' } },
+                { value: tir.target, name: '目标范围3.9-10.0', itemStyle: { color: '#38a169' } },
+                { value: Math.max(0, tir.hyper - tir.severe_hyper), name: '高血糖10.0-13.9', itemStyle: { color: '#dd6b20' } },
+                { value: tir.severe_hyper, name: '严重高血糖>13.9', itemStyle: { color: '#c53030' } },
+            ]
+        }]
+    });
+    window.addEventListener('resize', () => tirChart.resize());
+
+    // TIR 图例
+    const tl = document.getElementById('tirLegend');
+    tl.innerHTML = `
+        <span style="color:#38a169">● 达标 ${tir.target}%</span>
+        <span style="color:#e53e3e">● 低血糖 ${tir.hypo}%</span>
+        <span style="color:#dd6b20">● 高血糖 ${tir.hyper}%</span>
+        <span style="color:#805ad5">● 严重低 ${tir.severe_hypo}%</span>
+        <span style="color:#c53030">● 严重高 ${tir.severe_hyper}%</span>
+    `;
+
+    // 每日趋势
+    const dailyArr = Object.entries(data.daily || {});
+    if (dailyArr.length > 0) {
+        const dailyDom = document.getElementById('dailyTrendChart');
+        if (dailyDom.__echart) dailyDom.__echart.dispose();
+        const dailyChart = echarts.init(dailyDom);
+        dailyDom.__echart = dailyChart;
+        const dates = dailyArr.map(([d]) => d.slice(5));
+        const avgs = dailyArr.map(([, v]) => v.avg);
+        const mins = dailyArr.map(([, v]) => v.min);
+        const maxs = dailyArr.map(([, v]) => v.max);
+        dailyChart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['均值', '范围'], textStyle: { color: dark ? '#e8edf2' : '#2d3748' }, fontSize: 10 },
+            grid: { left: 40, right: 10, top: 30, bottom: 25 },
+            xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10, rotate: 45 } },
+            yAxis: { type: 'value', name: 'mmol/L', min: 0, splitLine: { lineStyle: { color: dark ? '#313d4a' : '#e2e8f0' } } },
+            series: [
+                { name: '均值', type: 'line', data: avgs, smooth: true, lineStyle: { color: '#2c7a7b', width: 2 }, symbol: 'circle', symbolSize: 4, connectNulls: true },
+                { name: '范围', type: 'line', data: maxs, smooth: true, lineStyle: { color: '#dd6b20', width: 0 }, symbol: 'none', connectNulls: true },
+                { name: '范围', type: 'line', data: mins, smooth: true, lineStyle: { color: '#38a169', width: 0 }, symbol: 'none', connectNulls: true, areaStyle: { color: 'rgba(45,55,72,0.08)' } }
+            ]
+        });
+        window.addEventListener('resize', () => dailyChart.resize());
+    }
+
+    // 按小时分布
+    const hourly = data.hourly || {};
+    const hours = Object.keys(hourly);
+    if (hours.length > 0) {
+        const hDom = document.getElementById('hourlyChart');
+        if (hDom.__echart) hDom.__echart.dispose();
+        const hChart = echarts.init(hDom);
+        hDom.__echart = hChart;
+        hChart.setOption({
+            tooltip: { trigger: 'axis' },
+            grid: { left: 40, right: 10, top: 15, bottom: 25 },
+            xAxis: { type: 'category', data: hours.map(h => h + ':00'), axisLabel: { fontSize: 10 } },
+            yAxis: { type: 'value', name: 'mmol/L', splitLine: { lineStyle: { color: dark ? '#313d4a' : '#e2e8f0' } } },
+            series: [{
+                type: 'bar', data: hours.map(h => hourly[h].avg),
+                itemStyle: {
+                    color: function(p) {
+                        const v = p.value;
+                        if (v > 10) return '#e53e3e';
+                        if (v < 3.9) return '#805ad5';
+                        if (v > 7.8) return '#dd6b20';
+                        return '#38a169';
+                    },
+                    borderRadius: [4, 4, 0, 0]
+                }
+            }]
+        });
+        window.addEventListener('resize', () => hChart.resize());
+    }
+
+    // 按类型统计
+    const types = data.by_type || {};
+    const tbody = Object.entries(types).map(([t, s]) =>
+        `<tr><td>${t}</td><td>${s.count}</td><td>${s.avg}</td><td>${s.min}</td><td>${s.max}</td></tr>`
+    ).join('');
+    document.getElementById('typeStatsTable').innerHTML = `
+        <table>
+            <tr><th>类型</th><th>次数</th><th>均值</th><th>最低</th><th>最高</th></tr>
+            ${tbody || '<tr><td colspan="5" style="text-align:center;color:var(--text-light);">暂无数据</td></tr>'}
+        </table>
+    `;
+}
+
+function renderInsights(insights) {
+    const container = document.getElementById('insightsContainer');
+    const colors = { danger: 'var(--danger)', warn: 'var(--warning)', good: 'var(--success)', info: 'var(--text-light)' };
+    const bgColors = { danger: 'var(--overview-danger)', warn: 'var(--overview-warn)', good: 'var(--overview-ok)', info: 'var(--card-bg)' };
+    container.innerHTML = insights.map(i => `
+        <div style="display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-radius:8px; background:${bgColors[i.level] || 'var(--card-bg)'}; border:1px solid ${colors[i.level] || 'var(--border)'};">
+            <span style="font-size:1.2rem; flex-shrink:0;">${i.icon}</span>
+            <span style="font-size:0.85rem; color:var(--text);">${i.text}</span>
+        </div>
+    `).join('');
+}
+
+// 统计时间范围按钮切换
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('stat-range-btn')) {
+        document.querySelectorAll('.stat-range-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        if (document.getElementById('tab-stats').classList.contains('active')) {
+            loadStats();
+        }
+    }
+});
+
 // ===== 月度报告 =====
 function generateReport() {
     const monthVal = document.getElementById('reportMonth').value;
     if (!monthVal) { alert('请选择报告月份'); return; }
     const [year, month] = monthVal.split('-');
     const monthStr = `${year}年${parseInt(month)}月`;
-    const monthPrefix = monthVal; // YYYY-MM
 
-    // 筛选当月数据
-    const monthGlu = glucoseRecords.filter(r => r.date.startsWith(monthPrefix));
-    const monthMed = medRecords.filter(r => r.date.startsWith(monthPrefix));
-    const monthDiet = dietRecords.filter(r => r.date.startsWith(monthPrefix));
-    const monthEx = exerciseRecords.filter(r => r.date.startsWith(monthPrefix));
-    const monthFu = followupRecords.filter(r => r.date.startsWith(monthPrefix));
+    // 从 API 获取月度报告数据
+    apiGet(`/api/report/monthly?year=${year}&month=${month}`).then(data => {
+        if (!data.ok) { alert('获取报告数据失败'); return; }
+        renderMonthlyReport(data, monthStr);
+    });
+}
 
-    // 血糖统计
-    const gluVals = monthGlu.map(r => parseFloat(r.value)).filter(v => !isNaN(v));
-    const fastingVals = monthGlu.filter(r => r.type === '空腹').map(r => parseFloat(r.value)).filter(v => !isNaN(v));
-    const postVals = monthGlu.filter(r => r.type === '餐后2h').map(r => parseFloat(r.value)).filter(v => !isNaN(v));
+function renderMonthlyReport(data, monthStr) {
+    const s = data.stats || {};
+    const todayStr = new Date().toLocaleDateString('zh-CN');
     const fastT = parseFloat(profileData.glucose_fasting_target) || 5.6;
     const postT = parseFloat(profileData.glucose_post_target) || 7.8;
 
-    const avgGlu = gluVals.length > 0 ? (gluVals.reduce((a,b)=>a+b,0) / gluVals.length).toFixed(1) : '—';
-    const maxGlu = gluVals.length > 0 ? Math.max(...gluVals).toFixed(1) : '—';
-    const minGlu = gluVals.length > 0 ? Math.min(...gluVals).toFixed(1) : '—';
-    const avgFast = fastingVals.length > 0 ? (fastingVals.reduce((a,b)=>a+b,0) / fastingVals.length).toFixed(1) : '—';
-    const avgPost = postVals.length > 0 ? (postVals.reduce((a,b)=>a+b,0) / postVals.length).toFixed(1) : '—';
-
-    // 达标率
-    const fastOK = fastingVals.filter(v => v >= 4.4 && v <= fastT).length;
-    const fastRate = fastingVals.length > 0 ? Math.round(fastOK / fastingVals.length * 100) : '—';
-    const postOK = postVals.filter(v => v < postT).length;
-    const postRate = postVals.length > 0 ? Math.round(postOK / postVals.length * 100) : '—';
-
-    // HbA1c估算 (近90天平均血糖 → eAG → HbA1c)
+    // HbA1c估算 (近90天)
     const cutoff90 = new Date();
     cutoff90.setDate(cutoff90.getDate() - 90);
     const cutoffStr = cutoff90.toISOString().split('T')[0];
@@ -2667,13 +2894,18 @@ function generateReport() {
     const eAG = recentVals.length > 0 ? (recentVals.reduce((a,b)=>a+b,0) / recentVals.length) : 0;
     const estHbA1c = eAG > 0 ? ((eAG + 2.59) / 1.59).toFixed(1) : '—';
 
+    // 本地数据补充
+    const monthPrefix = data.year + '-' + String(data.month).padStart(2, '0');
+    const monthDiet = dietRecords.filter(r => r.date.startsWith(monthPrefix));
+    const monthMed = medRecords.filter(r => r.date.startsWith(monthPrefix));
+    const monthFu = followupRecords.filter(r => r.date.startsWith(monthPrefix));
+
     // 用药统计
-    const medDays = new Set(monthMed.map(r => r.date)).size;
     const drugMap = {};
-    monthMed.forEach(r => {
-        if (!drugMap[r.name]) drugMap[r.name] = 0;
-        drugMap[r.name]++;
-    });
+    monthMed.forEach(r => { drugMap[r.name] = (drugMap[r.name] || 0) + 1; });
+    const drugRows = Object.entries(drugMap).map(([name, count]) =>
+        `<tr><td>${name}</td><td>${count}次</td></tr>`
+    ).join('') || '<tr><td colspan="2">无用药记录</td></tr>';
 
     // 热量统计
     const totalCal = monthDiet.reduce((s, r) => s + (parseFloat(r.calories) || 0), 0);
@@ -2685,18 +2917,13 @@ function generateReport() {
         ? (parseFloat(monthWeights[monthWeights.length-1].weight) - parseFloat(monthWeights[0].weight)).toFixed(1)
         : '—';
 
-    // 生成HTML
-    const drugRows = Object.entries(drugMap).map(([name, count]) =>
-        `<tr><td>${name}</td><td>${count}次</td></tr>`
-    ).join('') || '<tr><td colspan="2">无用药记录</td></tr>';
-
-    const noteText = [];
-    if (postRate !== '—' && postRate < 50) noteText.push('餐后血糖达标率偏低，建议加强饮食控制');
-    if (avgCal > 0 && avgCal < 1200) noteText.push('每日热量摄入偏低，需增加营养摄入以促进增重');
-    if (weightChange !== '—' && parseFloat(weightChange) < 0) noteText.push('本月体重下降，建议咨询营养师调整方案');
-    if (estHbA1c !== '—' && parseFloat(estHbA1c) >= 6.5) noteText.push('估算HbA1c≥6.5%，建议复诊检查');
-
-    const todayStr = new Date().toLocaleDateString('zh-CN');
+    // 智能建议
+    const tips = [];
+    if (s.tir_hyper && s.tir_hyper > 30) tips.push('🔴 高血糖比例偏高，建议控制碳水化合物摄入');
+    if (s.tir_hypo && s.tir_hypo > 10) tips.push('🟡 低血糖比例偏高，注意用药剂量和加餐');
+    if (avgCal > 0 && avgCal < 1200) tips.push('🟢 每日热量摄入偏低，需增加营养');
+    if (estHbA1c !== '—' && parseFloat(estHbA1c) >= 6.5) tips.push('🔴 估算HbA1c≥6.5%，建议复诊');
+    if (data.latest_hba1c) tips.push(`📊 最近测得HbA1c: ${data.latest_hba1c}%`);
 
     document.getElementById('reportContent').innerHTML = `
         <div class="report-header">
@@ -2717,26 +2944,26 @@ function generateReport() {
         <div class="report-section">
             <h2>🩸 血糖统计</h2>
             <div class="report-stats">
-                <div class="report-stat"><div class="val">${monthGlu.length}</div><div class="lbl">监测次数</div></div>
-                <div class="report-stat"><div class="val">${avgGlu}</div><div class="lbl">平均血糖(mmol/L)</div></div>
-                <div class="report-stat"><div class="val">${maxGlu}</div><div class="lbl">最高值</div></div>
-                <div class="report-stat"><div class="val">${minGlu}</div><div class="lbl">最低值</div></div>
+                <div class="report-stat"><div class="val">${s.count || 0}</div><div class="lbl">监测次数</div></div>
+                <div class="report-stat"><div class="val">${s.avg || '—'}</div><div class="lbl">平均血糖(mmol/L)</div></div>
+                <div class="report-stat"><div class="val">${s.max || '—'}</div><div class="lbl">最高值</div></div>
+                <div class="report-stat"><div class="val">${s.min || '—'}</div><div class="lbl">最低值</div></div>
             </div>
             <div class="report-stats">
-                <div class="report-stat"><div class="val">${avgFast}</div><div class="lbl">空腹均值(mmol/L)</div></div>
-                <div class="report-stat"><div class="val">${fastRate}${fastRate!=='—'?'%':''}</div><div class="lbl">空腹达标率</div></div>
-                <div class="report-stat"><div class="val">${avgPost}</div><div class="lbl">餐后2h均值(mmol/L)</div></div>
-                <div class="report-stat"><div class="val">${postRate}${postRate!=='—'?'%':''}</div><div class="lbl">餐后达标率</div></div>
+                <div class="report-stat"><div class="val">${s.tir_target || 0}%</div><div class="lbl">TIR达标率</div></div>
+                <div class="report-stat"><div class="val">${s.tir_hypo || 0}%</div><div class="lbl">低血糖比例</div></div>
+                <div class="report-stat"><div class="val">${s.tir_hyper || 0}%</div><div class="lbl">高血糖比例</div></div>
+                <div class="report-stat"><div class="val">${estHbA1c}</div><div class="lbl">估算HbA1c(%)</div></div>
             </div>
         </div>
 
         <div class="report-section">
             <h2>💊 用药情况</h2>
             <div class="report-stats">
-                <div class="report-stat"><div class="val">${medDays}</div><div class="lbl">用药天数</div></div>
-                <div class="report-stat"><div class="val">${monthMed.length}</div><div class="lbl">总次数</div></div>
+                <div class="report-stat"><div class="val">${data.med_days || 0}</div><div class="lbl">用药天数</div></div>
+                <div class="report-stat"><div class="val">${data.med_count || 0}</div><div class="lbl">总次数</div></div>
                 <div class="report-stat"><div class="val">${Object.keys(drugMap).length}</div><div class="lbl">药品种类</div></div>
-                <div class="report-stat"><div class="val">${estHbA1c}</div><div class="lbl">估算HbA1c(%)</div></div>
+                <div class="report-stat"><div class="val">${data.latest_hba1c || estHbA1c}</div><div class="lbl">HbA1c(%)</div></div>
             </div>
             <table class="report-table">
                 <thead><tr><th>药品名称</th><th>服用次数</th></tr></thead>
@@ -2745,32 +2972,34 @@ function generateReport() {
         </div>
 
         <div class="report-section">
-            <h2>🍽️ 饮食与运动</h2>
+            <h2>🏃 运动与饮食</h2>
             <div class="report-stats">
-                <div class="report-stat"><div class="val">${monthDiet.length}</div><div class="lbl">饮食记录</div></div>
+                <div class="report-stat"><div class="val">${data.ex_count || 0}</div><div class="lbl">运动次数</div></div>
+                <div class="report-stat"><div class="val">${data.diet_count || 0}</div><div class="lbl">饮食记录</div></div>
                 <div class="report-stat"><div class="val">${avgCal}</div><div class="lbl">日均热量(kcal)</div></div>
-                <div class="report-stat"><div class="val">${monthEx.length}</div><div class="lbl">运动次数</div></div>
-                <div class="report-stat"><div class="val">${weightChange}${weightChange!=='—'?'kg':''}</div><div class="lbl">体重变化</div></div>
+                <div class="report-stat"><div class="val">${weightChange}</div><div class="lbl">体重变化(kg)</div></div>
             </div>
         </div>
 
-        ${noteText.length > 0 ? `
         <div class="report-section">
-            <h2>⚠️ 健康提示</h2>
-            ${noteText.map(t => `<div class="report-note">• ${t}</div>`).join('')}
-        </div>
-        ` : ''}
-
-        <div class="report-footer">
-            本报告由糖尿病记录工具自动生成 | 仅供参考，不替代专业医疗建议 | 请遵医嘱
+            <h2>💡 智能建议</h2>
+            <ul style="margin:10px 0; padding-left:20px;">
+                ${tips.length > 0 ? tips.map(t => `<li style="margin:6px 0; font-size:0.85rem;">${t}</li>`).join('') : '<li style="font-size:0.85rem;color:var(--text-light);">血糖控制良好，继续保持！</li>'}
+            </ul>
         </div>
 
-        <div class="report-actions">
+        <div class="report-section" style="text-align:center;color:var(--text-light);font-size:0.75rem;">
+            <p>本报告仅供参考，不能替代医生诊断。建议复诊时带此报告给医生参考。</p>
+        </div>
+
+        <div style="text-align:center;margin-top:20px;">
             <button class="btn btn-primary" onclick="window.print()">🖨️ 打印 / 保存PDF</button>
-            <button class="btn" style="background:var(--text-light); color:white;" onclick="closeReport()">关闭</button>
         </div>
     `;
+    showReportModal();
+}
 
+function showReportModal() {
     document.getElementById('reportOverlay').classList.add('active');
 }
 
