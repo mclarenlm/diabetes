@@ -1,10 +1,48 @@
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, ref, shallowRef, watch, nextTick } from 'vue'
 import { useAppStore } from '@/stores/app'
+import Home from '@/pages/home/index.vue'
+import Glucose from '@/pages/glucose/index.vue'
+import Diet from '@/pages/diet/index.vue'
+import Medication from '@/pages/medication/index.vue'
+import Exercise from '@/pages/exercise/index.vue'
 
 const store = useAppStore()
 const isDark = ref(false)
 const currentDate = ref('')
+const activeTab = ref('home')
+
+const tabs = [
+  { key: 'home', emoji: '🏠', label: '今日', comp: Home },
+  { key: 'medication', emoji: '💊', label: '用药', comp: Medication },
+  { key: 'diet', emoji: '🍽️', label: '饮食', comp: Diet },
+  { key: 'exercise', emoji: '🏃', label: '运动', comp: Exercise },
+  { key: 'glucose', emoji: '🩸', label: '血糖', comp: Glucose },
+  { key: 'followup', emoji: '🎯', label: '目标', comp: null },
+  { key: 'gi', emoji: '🥗', label: 'GI查询', comp: null },
+  { key: 'profile', emoji: '⚙️', label: '设置', comp: null },
+]
+
+const currentComp = shallowRef(Home)
+
+function switchTab(key) {
+  const tab = tabs.find(t => t.key === key)
+  if (!tab || !tab.comp) return
+  activeTab.value = key
+  currentComp.value = tab.comp
+  // 血糖图表需要等 DOM 渲染后重绘
+  if (key === 'glucose') {
+    nextTick(() => {
+      setTimeout(() => {
+        const dom = document.getElementById('gluChart')
+        if (dom && window.echarts) {
+          // 触发 watch 重新渲染
+          window.dispatchEvent(new Event('resize'))
+        }
+      }, 100)
+    })
+  }
+}
 
 function updateDate() {
   currentDate.value = new Date().toLocaleDateString('zh-CN', {
@@ -26,7 +64,6 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- Header -->
   <header class="header">
     <div class="header-inner">
       <div class="header-left">
@@ -44,45 +81,17 @@ onMounted(() => {
     </div>
   </header>
 
-  <!-- Tab Bar -->
   <nav class="tabs">
-    <button class="tab-btn active">
-      <span class="emoji">🏠</span>
-      <span>今日</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">💊</span>
-      <span>用药</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">🍽️</span>
-      <span>饮食</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">🏃</span>
-      <span>运动</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">🩸</span>
-      <span>血糖</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">🎯</span>
-      <span>目标</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">🥗</span>
-      <span>GI查询</span>
-    </button>
-    <button class="tab-btn" disabled>
-      <span class="emoji">⚙️</span>
-      <span>设置</span>
+    <button v-for="t in tabs" :key="t.key"
+      class="tab-btn" :class="{ active: activeTab === t.key }"
+      :disabled="!t.comp" @click="switchTab(t.key)">
+      <span class="emoji">{{ t.emoji }}</span>
+      <span>{{ t.label }}</span>
     </button>
   </nav>
 
-  <!-- Page Content -->
   <div class="container">
-    <router-view />
+    <component :is="currentComp" />
   </div>
 </template>
 
@@ -116,9 +125,7 @@ onMounted(() => {
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
+  background: var(--bg); color: var(--text); min-height: 100vh;
 }
 
 .header { background: var(--header-bg); padding: 18px 0; color: white; position: sticky; top: 0; z-index: 100; }
@@ -127,29 +134,12 @@ body {
 .header-left { display:flex; align-items:center; gap:10px; flex: 0 0 auto; }
 .header-center { flex: 1 1 auto; display:flex; justify-content:center; min-width: 0; }
 .header-right { display:flex; align-items:center; gap:8px; flex: 0 0 auto; }
-
-.member-switch {
-  padding: 6px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;
-  font-size: 0.8rem; background: rgba(255,255,255,0.15); color: white; cursor: pointer;
-  max-width: 120px;
-}
+.member-switch { padding: 6px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 0.8rem; background: rgba(255,255,255,0.15); color: white; cursor: pointer; max-width: 120px; }
 .date-display { font-size: 1rem; opacity: 0.95; white-space: nowrap; font-weight: 500; }
-.theme-toggle {
-  background: rgba(255,255,255,0.15); border: none; border-radius: 8px;
-  padding: 6px 10px; font-size: 1.2rem; cursor: pointer; color: white;
-}
+.theme-toggle { background: rgba(255,255,255,0.15); border: none; border-radius: 8px; padding: 6px 10px; font-size: 1.2rem; cursor: pointer; color: white; }
 
-.tabs {
-  display: flex; gap: 4px; padding: 12px 20px;
-  background: var(--card); border-bottom: 1px solid var(--border);
-  overflow-x: auto; max-width: 1400px; margin: 0 auto;
-}
-.tab-btn {
-  flex: 1; padding: 10px 4px; font-size: 0.8rem; border: none;
-  background: transparent; color: var(--text-light); border-radius: 8px;
-  cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  white-space: nowrap; min-width: 56px;
-}
+.tabs { display: flex; gap: 4px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--border); overflow-x: auto; max-width: 1400px; margin: 0 auto; }
+.tab-btn { flex: 1; padding: 10px 4px; font-size: 0.8rem; border: none; background: transparent; color: var(--text-light); border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; white-space: nowrap; min-width: 56px; }
 .tab-btn.active { background: var(--primary); color: white; font-weight: 600; }
 .tab-btn:not(.active):not(:disabled):hover { background: var(--primary-light); }
 .tab-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -157,32 +147,19 @@ body {
 
 .container { max-width: 1400px; margin: 0 auto; padding: 16px 20px; }
 
-.card {
-  background: var(--card); border-radius: 12px; padding: 18px 20px;
-  margin-bottom: 16px; border: 1px solid var(--border);
-}
+.card { background: var(--card); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; border: 1px solid var(--border); }
 .card h2 { font-size: 1.1rem; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
-
-.overview-card {
-  background: var(--primary); color: white; border-radius: 14px; padding: 20px 24px;
-  margin-bottom: 16px;
-}
+.overview-card { background: var(--primary); color: white; border-radius: 14px; padding: 20px 24px; margin-bottom: 16px; }
 .overview-card h2 { color: white; }
 .overview-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 8px; }
 .overview-item { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 12px 14px; }
 .overview-item .label { font-size: 0.78rem; opacity: 0.8; margin-bottom: 2px; }
 .overview-item .value { font-size: 1.3rem; font-weight: 700; }
 
-.btn {
-  display: inline-flex; align-items: center; gap: 4px; padding: 10px 18px;
-  border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem;
-  cursor: pointer; background: var(--card); color: var(--text);
-  transition: all 0.2s;
-}
+.btn { display: inline-flex; align-items: center; gap: 4px; padding: 10px 18px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; cursor: pointer; background: var(--card); color: var(--text); transition: all 0.2s; }
 .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-
+.btn-sm { padding: 6px 10px; font-size: 0.78rem; }
 .empty-state { text-align: center; color: var(--text-light); padding: 24px; font-size: 0.9rem; }
 
 @media (max-width: 768px) {

@@ -2,9 +2,23 @@
   "pages": [
     {
       "path": "pages/home/index",
-      "style": {
-        "navigationBarTitleText": "今日概览"
-      }
+      "style": { "navigationBarTitleText": "今日概览" }
+    },
+    {
+      "path": "pages/glucose/index",
+      "style": { "navigationBarTitleText": "血糖记录" }
+    },
+    {
+      "path": "pages/diet/index",
+      "style": { "navigationBarTitleText": "饮食记录" }
+    },
+    {
+      "path": "pages/medication/index",
+      "style": { "navigationBarTitleText": "用药记录" }
+    },
+    {
+      "path": "pages/exercise/index",
+      "style": { "navigationBarTitleText": "运动记录" }
     }
   ],
   "globalStyle": {
