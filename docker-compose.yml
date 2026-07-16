@@ -3,8 +3,8 @@ version: '3.8'
 services:
   diabetes-tracker:
     build:
-      context: ../..
-      dockerfile: diabetes-nas-app/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: diabetes-tracker
     restart: unless-stopped
     healthcheck:

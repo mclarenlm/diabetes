@@ -14,11 +14,11 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # 后端依赖
-COPY diabetes-nas-app/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY diabetes-nas-app/app.py .
-COPY diabetes-nas-app/page.html .
+COPY app.py .
+COPY page.html .
 
 # Uni-app 前端产物（从构建阶段复制）
 COPY --from=builder /src/dist/build/h5 /app/static/spa
